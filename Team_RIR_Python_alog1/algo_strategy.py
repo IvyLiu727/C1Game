@@ -42,6 +42,22 @@ class AlgoStrategy(gamelib.AlgoCore):
         MP = 1
         SP = 0
 
+        # # AR = Attack Range, AD = Attack Damage
+        # global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
+        # TURRET_AR = config["unitInformation"][2]["attackRange"]
+        # TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
+        # SCOUT_AR = config["unitInformation"][3]["attackRange"]
+        # SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"] 
+        # DEMOLISHER_AR = config["unitInformation"][4]["attackRange"]
+        # DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"] 
+        # INTERCEPTOR_AR = config["unitInformation"][5]["attackRange"]
+        # INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"] 
+
+        # # UP = Upgraded
+        # global TURRET_UP_AR, TURRET_UP_AD
+        # TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
+        # TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
+
         # This is a good place to do initial setup
         self.scored_on_locations = []
         self.factory_locations = None
@@ -156,21 +172,35 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.units[WALL] = game_state.attempt_upgrade(wall_locations)
         
         #Place upggraded factories at the deepest location
-        self.factory_locations = {[13,3],[14,3]}
-        self.units[FACTORY] =game_state.attempt_spawn(FACTORY, factory_locations)
-        game_state.attempt_upgrade(factory_locations)
+        self.factory_locations = [[13,3],[14,3]]
+        self.units[FACTORY] = game_state.attempt_spawn(FACTORY, self.factory_locations)
+        game_state.attempt_upgrade(self.factory_locations)
         
         #pre-calculated fatroy locations -- basically hard-coded
         for y in range(6):
             for x in range(4):
-                self.factory_locations.append([12+x,4 + y])
+                self.factory_locations.append([12 + x,4 + y])
 
-
+    # calculates the maximum damage a unit will take at location,
+    # which is a list with two elements representing x, y coordinates, 
+    # returns an integer
+    def max_damage (location, game_state):
+        x = location[0]
+        y = location[1]
+        damage = 0
+        # Our mobile unit is in our half of the arena
+        if y < 14:
+            return 0
+        # Our mobile unit is in enemy‘s half of the arena
+        attackers = game_state.get_attackers(location, 0)
+        for attacker in attackers:
+            damage += attacker.damage_i
+        return damage
 
     # decides production or defence
     # retruns True if factory is prioirtizes over walls + turrects,
     # False otherwise
-    def is_production(self,game_state):
+    def is_production(self, game_state):
         # if no defenders are damaged, we just keep increase the number of factories
         is_defender_damaged = False
         if not is_defender_damaged:
