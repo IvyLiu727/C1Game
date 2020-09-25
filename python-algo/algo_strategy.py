@@ -41,28 +41,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         INTERCEPTOR = config["unitInformation"][5]["shorthand"]
         MP = 1
         SP = 0
-
-        # # AR = Attack Range, AD = Attack Damage
-        # global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
-        # TURRET_AR = config["unitInformation"][2]["attackRange"]
-        # TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
-        # SCOUT_AR = config["unitInformation"][3]["attackRange"]
-        # SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"] 
-        # DEMOLISHER_AR = config["unitInformation"][4]["attackRange"]
-        # DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"] 
-        # INTERCEPTOR_AR = config["unitInformation"][5]["attackRange"]
-        # INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"] 
-
-        # # UP = Upgraded
-        # global TURRET_UP_AR, TURRET_UP_AD
-        # TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
-        # TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
-
         # This is a good place to do initial setup
         self.scored_on_locations = []
-        self.factory_locations = None
-        self.units = {}
-        
+
     def on_turn(self, turn_state):
         """
         This function is called every turn with the game state wrapper as
@@ -74,40 +55,15 @@ class AlgoStrategy(gamelib.AlgoCore):
         game_state = gamelib.GameState(self.config, turn_state)
         gamelib.debug_write('Performing turn {} of your custom algo strategy'.format(game_state.turn_number))
         game_state.suppress_warnings(True)  #Comment or remove this line to enable warnings.
+
         self.starter_strategy(game_state)
+
         game_state.submit_turn()
-        
 
 
     """
     NOTE: All the methods after this point are part of the sample starter-algo
     strategy and can safely be replaced for your custom algo.
-    """
-
-    """
-    ## todo 
-    algo based on Raffel boss 4
-    1. 30 structure points : 
-        - 2 upgraded factories, cost -> 24
-        - 2 turrects, cost -> 4
-        - 2 wall in fornt of each turrect, cost -> 2
-    
-    Advantages: 
-    1. to have a row of upgraded walls + upgraded turrects for protection.
-    this also help demolishers clear enemy's units/structures at the frontier.
-
-    2. Deploying interceptors at locations [[11,2], [16,2], [6,7], [21,7]] 
-    in earlier stage will gain mobile points if units damaged enemy's base. 
-    It also potentially destroy enemy's factories by self-destruction
-
-    Placing Structures:
-    At each turn, building factories prioritizes bulding turrects and walls. 
-    But buliding and upgrading walls + turrects first if our frontier is wrecked.
-    
-    Place turrects and walls in the middle, if enemy scored on us through a path 
-    in the middle.
-
-    
     """
 
     def starter_strategy(self, game_state):
@@ -117,17 +73,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         For offense we will use long range demolishers if they place stationary units near the enemy's front.
         If there are no stationary units to attack in the front, we will send Scouts to try and score quickly.
         """
-
-
-        # First, setup initial mobiles and units:
-        if game_state.turn_number == 0:
-            self.init_setup(game_state)
-
-        # Walls and Turrects or Factories decisions:
-        
-
+        # First, place basic defenses
+        self.build_defences(game_state)
         # Now build reactive defenses based on where the enemy scored
-        # self.build_reactive_defense(game_state)
+        self.build_reactive_defense(game_state)
 
         # If the turn is less than 5, stall with interceptors and wait to see enemy's base
         if game_state.turn_number < 5:
@@ -152,153 +101,35 @@ class AlgoStrategy(gamelib.AlgoCore):
                 factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 game_state.attempt_spawn(FACTORY, factory_locations)
 
-    ## * init_setup will set up the units and structures at the begining
-    def init_setup(self, game_state):
+    def build_defences(self, game_state):
         """
         Build basic defenses using hardcoded locations.
         Remember to defend corners and avoid placing units in the front where enemy demolishers can attack them.
         """
-   
+        # Useful tool for setting up your base locations: https://www.kevinbai.design/terminal-map-maker
+        # More community tools available at: https://terminal.c1games.com/rules#Download
+
         # Place turrets that attack enemy units
-        turret_locations = [[3,12],[24,12]]
+        turret_locations = [[0, 13], [27, 13], [8, 11], [19, 11], [13, 11], [14, 11]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
-        self.units[TURRET] = game_state.attempt_spawn(TURRET, turret_locations)
-    
+        game_state.attempt_spawn(TURRET, turret_locations)
         
         # Place walls in front of turrets to soak up damage for them
-        wall_locations = [[3,13],[24,13]]
+        wall_locations = [[8, 12], [19, 12]]
         game_state.attempt_spawn(WALL, wall_locations)
         # upgrade walls so they soak more damage
-        self.units[WALL] = game_state.attempt_upgrade(wall_locations)
-        
-        #Place upggraded factories at the deepest location
-        self.factory_locations = [[13,3],[14,3]]
-        self.units[FACTORY] = game_state.attempt_spawn(FACTORY, self.factory_locations)
-        # game_state.attempt_upgrade(self.factory_locations)
-        
-        #pre-calculated fatroy locations -- basically hard-coded
-        for y in range(6):
-            for x in range(4):
-                self.factory_locations.append([12 + x,4 + y])
+        game_state.attempt_upgrade(wall_locations)
 
-    # calculates the maximum damage a unit will take at location,
-    # which is a list with two elements representing x, y coordinates, 
-    # returns an integer
-    def max_damage (location, game_state):
-        x = location[0]
-        y = location[1]
-        damage = 0
-        # Our mobile unit is in our half of the arena
-        if y < 14:
-            return 0
-        # Our mobile unit is in enemy‘s half of the arena
-        attackers = game_state.get_attackers(location, 0)
-        for attacker in attackers:
-            damage += attacker.damage_i
-        return damage
-
-    # decides production or defence
-    # retruns True if factory is prioirtizes over walls + turrects,
-    # False otherwise
-    def is_production(self, game_state):
-        # if no defenders are damaged, we just keep increase the number of factories
-        is_defender_damaged = False
-        if not is_defender_damaged:
-            self.build_factory()
-        else:
-            self.build_reactive_defense(game_state)
-        
-        return True
-    
-    def build_factory(self):
-        self.units[FACTORY] += game_state.attempt_spawn(FACTORY,self.factory_locations[self.units])
-    ## a function that decides whether to upgrade the lastest factory or not
-    # def is_upgrade_factory(self,game_state):
-    #     for x,y in self.factory_locations:
-    #         factory = gamelib.GameUnit(FACTORY,game_state.config)
-    #         if 
-    #     return 0
-
-    ## todo Raymond T was implementing defenders part
     def build_reactive_defense(self, game_state):
         """
-        This function builds reactive defenses based on where enemy damaged or 
-        destroyed our defenders
+        This function builds reactive defenses based on where the enemy scored on us from.
+        We can track where the opponent scored by looking at events in action frames 
+        as shown in the on_action_frame function
         """
-        
-        ## for every destroyed defenders we attempt to build it
-        for x,y in self.defenders_dead_on_location:
-            defender_type = self.defenders_dead_on_location[(x,y)]
-            self.units[defender_type] += game_state.attempt_spawn(defender_type,[x,y])
-
-        ## ? for every damaged unit, do we upgrade it
-        for x,y in self.defenders_damaged_on_loaction:
-            defender_type = self.defenders_damaged_on_location[(x,y)]
-            self.units[defender_type] += game_state.attempt_spawn(defender_type, [x,y])
-
-        
-       
-    
-
-     ## return a list of non-stationary locations   
-    def filter_blocked_locations(self, locations, game_state):
-        filtered = []
-        for location in locations:
-            if not game_state.contains_stationary_unit(location):
-                filtered.append(location)
-        return filtered
-
-    def on_action_frame(self, turn_string):
-        """
-        This is the action frame of the game. This function could be called 
-        hundreds of times per turn and could slow the algo down so avoid putting slow code here.
-        Processing the action frames is complicated so we only suggest it if you have time and experience.
-        Full doc on format of a game frame at: https://docs.c1games.com/json-docs.html
-        """
-        # Let's record at what position we get scored on
-        state = json.loads(turn_string)
-        events = state["events"]
-        breaches = events["breach"]
-        damages = events["damage"]
-        deaths = events["death"]
-
-        defenders = [WALL, TURRET]
-        # Record what position our defender gets damaged
-        ## * defenders on location is a dictionary with 
-        ## key: location, key location will always be unique since stationary unit can't occupy the same location
-        ## val: unity type
-        self.defenders_damaged_on_location = {}
-        self.defenders_dead_on_location = {}
-        # defender = None
-        for damaged in damages:
-            location =tuple(damaged[0])
-            unit_owner_self = True if damaged[4] == 1 else False
-            #check if unit is a denfender, return -1 if it's a mobile
-            defender = damaged[2] if damaged[2] in defenders else -1
-            if unit_owner_self and defender != -1:
-                self.defenders_damaged_on_location[location] = defender
-
-
-        # Record what position our defender gets destoryed
-        
-        for death in deaths:
-            location = tuple(death[0])
-            unit_owner_self = False
-            # if unit is a defender and not removed by ourself
-            defender = death[1] if death[1] in defenders else -1
-            unit_owner_self = True if death[3] == 1 else False
-            if defender != 1 and unit_owner_self and not death[4]:
-                self.defenders_dead_on_location[location] = defender
-
-        for breach in breaches:
-            location = breach[0]
-            unit_owner_self = True if breach[4] == 1 else False
-            # When parsing the frame data directly, 
-            # 1 is integer for yourself, 2 is opponent (StarterKit code uses 0, 1 as player_index instead)
-            if not unit_owner_self:
-                gamelib.debug_write("Got scored on at: {}".format(location))
-                self.scored_on_locations.append(location)
-                # gamelib.debug_write("All locations: {}".format(self.scored_on_locations))
+        for location in self.scored_on_locations:
+            # Build turret one space above so that it doesn't block our own edge spawn locations
+            build_location = [location[0], location[1]+1]
+            game_state.attempt_spawn(TURRET, build_location)
 
     def stall_with_interceptors(self, game_state):
         """
@@ -372,6 +203,35 @@ class AlgoStrategy(gamelib.AlgoCore):
                     if unit.player_index == 1 and (unit_type is None or unit.unit_type == unit_type) and (valid_x is None or location[0] in valid_x) and (valid_y is None or location[1] in valid_y):
                         total_units += 1
         return total_units
+        
+    def filter_blocked_locations(self, locations, game_state):
+        filtered = []
+        for location in locations:
+            if not game_state.contains_stationary_unit(location):
+                filtered.append(location)
+        return filtered
+
+    def on_action_frame(self, turn_string):
+        """
+        This is the action frame of the game. This function could be called 
+        hundreds of times per turn and could slow the algo down so avoid putting slow code here.
+        Processing the action frames is complicated so we only suggest it if you have time and experience.
+        Full doc on format of a game frame at: https://docs.c1games.com/json-docs.html
+        """
+        # Let's record at what position we get scored on
+        state = json.loads(turn_string)
+        events = state["events"]
+        breaches = events["breach"]
+        for breach in breaches:
+            location = breach[0]
+            unit_owner_self = True if breach[4] == 1 else False
+            # When parsing the frame data directly, 
+            # 1 is integer for yourself, 2 is opponent (StarterKit code uses 0, 1 as player_index instead)
+            if not unit_owner_self:
+                gamelib.debug_write("Got scored on at: {}".format(location))
+                self.scored_on_locations.append(location)
+                gamelib.debug_write("All locations: {}".format(self.scored_on_locations))
+
 
 if __name__ == "__main__":
     algo = AlgoStrategy()
