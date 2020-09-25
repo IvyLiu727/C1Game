@@ -42,26 +42,36 @@ class AlgoStrategy(gamelib.AlgoCore):
         MP = 1
         SP = 0
 
-        # # AR = Attack Range, AD = Attack Damage
-        # global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
-        # TURRET_AR = config["unitInformation"][2]["attackRange"]
-        # TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
-        # SCOUT_AR = config["unitInformation"][3]["attackRange"]
-        # SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"] 
-        # DEMOLISHER_AR = config["unitInformation"][4]["attackRange"]
-        # DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"] 
-        # INTERCEPTOR_AR = config["unitInformation"][5]["attackRange"]
-        # INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"] 
+        # AR = Attack Range, AD = Attack Damage
+        global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
+        TURRET_AR = config["unitInformation"][2]["attackRange"]
+        TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
+        SCOUT_AR = config["unitInformation"][3]["attackRange"]
+        SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"] 
+        DEMOLISHER_AR = config["unitInformation"][4]["attackRange"]
+        DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"] 
+        INTERCEPTOR_AR = config["unitInformation"][5]["attackRange"]
+        INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"] 
 
-        # # UP = Upgraded
-        # global TURRET_UP_AR, TURRET_UP_AD
-        # TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
-        # TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
+        # UP = Upgraded
+        global TURRET_UP_AR, TURRET_UP_AD
+        TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
+        TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
 
         # This is a good place to do initial setup
         self.scored_on_locations = []
-        self.factory_locations = None
-        self.units = {}
+        self.defenders_damaged_on_location = {} ## * record what position our denfenders got damaged
+        self.defenders_dead_on_location = {} ## * record what position our denfenders got destroyed
+        self.factory_locations = None ## * has a list of hard-coded factory locations
+        ## * self.units with 
+        ## * key: Unit type
+        ## * val: Number of units in our arena
+        self.units = {} 
+        self.structure_point = 0 ## * our sp on each turn
+        self.mobile_points = 0 ## * our mp on each turn
+        self.health = 0 ## * our health each turn
+        
+
         
     def on_turn(self, turn_state):
         """
@@ -90,7 +100,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     1. 30 structure points : 
         - 2 upgraded factories, cost -> 24
         - 2 turrects, cost -> 4
-        - 2 wall in fornt of each turrect, cost -> 2
+        - 1 wall in fornt of each turrect, cost -> 2
     
     Advantages: 
     1. to have a row of upgraded walls + upgraded turrects for protection.
@@ -110,15 +120,9 @@ class AlgoStrategy(gamelib.AlgoCore):
     
     """
 
+
     def starter_strategy(self, game_state):
-        """
-        For defense we will use a spread out layout and some interceptors early on.
-        We will place turrets near locations the opponent managed to score on.
-        For offense we will use long range demolishers if they place stationary units near the enemy's front.
-        If there are no stationary units to attack in the front, we will send Scouts to try and score quickly.
-        """
-
-
+    
         # First, setup initial mobiles and units:
         if game_state.turn_number == 0:
             self.init_setup(game_state)
@@ -176,6 +180,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.units[FACTORY] = game_state.attempt_spawn(FACTORY, self.factory_locations)
         # game_state.attempt_upgrade(self.factory_locations)
         
+        ## ! factory placement is not dynamic/reactive
         #pre-calculated fatroy locations -- basically hard-coded
         for y in range(6):
             for x in range(4):
@@ -202,17 +207,35 @@ class AlgoStrategy(gamelib.AlgoCore):
     # False otherwise
     def is_production(self, game_state):
         # if no defenders are damaged, we just keep increase the number of factories
+        defenders = [WALL, TURRET]
+        death_ratio ={defender: 0 for defender in defenders}
+        
+        for location in self.defenders_dead_on_location:
+            defender = self.defenders_dead_on_location
+            death_ratio[defender] += 1
+
+        for defender in defenders:
+            defender_count = death_ratio[defender]
+            death_ratio[defender] = defender_count / self.units[defenders]
+            
+            
+        
+        
+
+
         is_defender_damaged = False
         if not is_defender_damaged:
-            self.build_factory()
+            self.build_factory(game_state)
         else:
             self.build_reactive_defense(game_state)
         
         return True
     
-    def build_factory(self):
+    def build_factory(self,game_state):
         self.units[FACTORY] += game_state.attempt_spawn(FACTORY,self.factory_locations[self.units])
-    ## a function that decides whether to upgrade the lastest factory or not
+
+
+    ## a function that decides whether to upgrade factory or not
     # def is_upgrade_factory(self,game_state):
     #     for x,y in self.factory_locations:
     #         factory = gamelib.GameUnit(FACTORY,game_state.config)
@@ -226,7 +249,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         destroyed our defenders
         """
         
-        ## for every destroyed defenders we attempt to build it
+        ## for every destroyed defenders we attempt to build ito
         for x,y in self.defenders_dead_on_location:
             defender_type = self.defenders_dead_on_location[(x,y)]
             self.units[defender_type] += game_state.attempt_spawn(defender_type,[x,y])
@@ -235,9 +258,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         for x,y in self.defenders_damaged_on_loaction:
             defender_type = self.defenders_damaged_on_location[(x,y)]
             self.units[defender_type] += game_state.attempt_spawn(defender_type, [x,y])
-
-        
-       
     
 
      ## return a list of non-stationary locations   
@@ -257,6 +277,12 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
         # Let's record at what position we get scored on
         state = json.loads(turn_string)
+
+        # Our turn state stats
+        self.health = state["p1Stats"][0]
+        self.structure_point = state["p1Stats"][1]
+        self.mobile_points = state["p1Stats"][2]
+
         events = state["events"]
         breaches = events["breach"]
         damages = events["damage"]
@@ -264,7 +290,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         defenders = [WALL, TURRET]
         # Record what position our defender gets damaged
-        ## * defenders on location is a dictionary with 
+        ## * defenders_on_location is a dictionary with 
         ## key: location, key location will always be unique since stationary unit can't occupy the same location
         ## val: unity type
         self.defenders_damaged_on_location = {}
@@ -277,6 +303,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             defender = damaged[2] if damaged[2] in defenders else -1
             if unit_owner_self and defender != -1:
                 self.defenders_damaged_on_location[location] = defender
+                self.units[defender] -= 1
 
 
         # Record what position our defender gets destoryed
