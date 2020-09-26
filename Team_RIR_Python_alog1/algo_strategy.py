@@ -289,19 +289,20 @@ class AlgoStrategy(gamelib.AlgoCore):
         damages = events["damage"]
         deaths = events["death"]
 
-        defenders = [UNIT_TYPE_TO_INDEX[WALL], UNIT_TYPE_TO_INDEX[TURRET]]
+        defenders = [WALL, TURRET]
         # Record what position our defender gets damaged
         ## * defenders_on_location is a dictionary with 
         ## key: location, key location will always be unique since stationary unit can't occupy the same location
         ## val: unity type
         self.defenders_damaged_on_location = {}
         self.defenders_dead_on_location = {}
-        # defender = None
+        # defender = Nones
         for damaged in damages:
             location = tuple(damaged[0])
             unit_owner_self = True if damaged[4] == 1 else False
             #check if unit is a denfender, return -1 if it's a mobile
             defender = damaged[2] if damaged[2] in defenders else -1
+            # gamelib.debug_write('hello:{}'.format(type(self.units)))
             if unit_owner_self and defender != -1:
                 self.defenders_damaged_on_location[location] = defender
                 self.units[defender] -= 1
