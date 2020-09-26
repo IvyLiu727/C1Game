@@ -65,14 +65,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"] 
 
         # UP = Upgraded
-        global TURRET_UP_AR, TURRET_UP_AD
-        TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
-        TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
+        # global TURRET_UP_AR, TURRET_UP_ADo
+        # TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
+        # TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
 
         # records the latest factory location been placed on arena
         # index 0 for left wing, 1 for right wind
         global factory_next_location
-        factory_next_location=[[13, 2]
+        factory_next_location=[13, 2]
 
         # This is a good place to do initial setup
         self.scored_on_locations = []
