@@ -83,7 +83,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.scored_on_locations = []
         self.defenders_damaged_on_location = {} ## * record what position our denfenders got damaged, key is location and val is unity string type
         self.defenders_dead_on_location = {} ## * record what position our denfenders got destroyed, key is location and val is unity string type
-        self.factory_left_wing = [13,3]
+        self.factory_left_wing = [12,3]
         self.factory_right_wing = [14,3]
         self.factory_locations = []
         ## * self.units with 
@@ -149,6 +149,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         if game_state.turn_number == 0:
             self.init_setup(game_state)
 
+        ## * DEFENSE AND PRODUCTION
         # Walls and Turrects or Factories decisions:
         self.production_or_defense(game_state)
         self.build_reactive_defense(game_state)
@@ -156,6 +157,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         # Now build reactive defenses based on where the enemy scored
         # self.build_reactive_defense(game_state)
 
+
+        ## * DEPLOY
         # If the turn is less than 5, stall with interceptors and wait to see enemy's base
         if game_state.turn_number < 5:
             self.stall_with_interceptors(game_state)
@@ -175,9 +178,9 @@ class AlgoStrategy(gamelib.AlgoCore):
                     best_location = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
                     game_state.attempt_spawn(SCOUT, best_location, 1000)
 
-                # Lastly, if we have spare SP, let's build some Factories to generate more resources
-                factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
-                game_state.attempt_spawn(FACTORY, factory_locations)
+                # # Lastly, if we have spare SP, let's build some Factories to generate more resources
+                # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
+                # game_state.attempt_spawn(FACTORY, factory_locations)
 
     ## * init_setup will set up the units and structures at the begining
     def init_setup(self, game_state):
@@ -194,12 +197,8 @@ class AlgoStrategy(gamelib.AlgoCore):
     
     
         #Place upggraded factories at the deepest location
-        self.factory_locations = [[13,4],[14,4], self.factory_left_wing, self.factory_right_wing]
+        self.factory_locations = [[13,2],[14,2],self.factory_left_wing, self.factory_right_wing]
         self.units[FACTORY] += game_state.attempt_spawn(FACTORY, self.factory_locations)
-
-
-
-
 
     # calculates the maximum damage a unit will take at location,
     # which is a list with two elements representing x, y coordinates, 
@@ -220,7 +219,6 @@ class AlgoStrategy(gamelib.AlgoCore):
     ## 1. build defenders if any is destroyed
     ## 2. upgrade defenders if any is damaged
     def production_or_defense(self, game_state):
-        gamelib.debug_write("hello")
         # if any denfenders are destoryed, rebuild
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
@@ -228,23 +226,25 @@ class AlgoStrategy(gamelib.AlgoCore):
         
         ## build factory
         threshold = 3
+        factory_affordable = game_state.number_affordable(FACTORY)
         gamelib.debug_write("factory affordable:{}".format(game_state.number_affordable(FACTORY)))
         if game_state.number_affordable(FACTORY) > threshold:
             # * alternating factory left and right wing
             # * mod 2 = 0, left wing
             # * mod 2 =1, right wing
             location = None
-            if len(self.factory_locations) % 2 == 0:
-                x,y = self.factory_left_wing
-                self.factory_left_wing = [x-1,y+1]
-                location = self.factory_left_wing
-            else:
-                x,y = self.factory_right_wing
-                self.factory_right_wing = [x+1,y+1]
-                location  = self.factory_right_wing 
-            self.factory_locations.append(location)
-            if game_state.can_spawn(FACTORY,location):
-                self.units[FACTORY] += game_state.attempt_spawn(FACTORY,location)
+            for (i in range(fatory_affordable)):
+                if len(self.factory_locations) % 2 == 0:
+                    x,y = self.factory_left_wing
+                    self.factory_left_wing = [x-1,y+1]
+                    location = self.factory_left_wing
+                else:
+                    x,y = self.factory_right_wing
+                    self.factory_right_wing = [x+1,y+1]
+                    location  = self.factory_right_wing 
+                self.factory_locations.append(location)
+                if game_state.can_spawn(FACTORY,location):
+                    self.units[FACTORY] += game_state.attempt_spawn(FACTORY,location)
             
         
         # if any defenders is damaged, upgrade it
@@ -256,11 +256,6 @@ class AlgoStrategy(gamelib.AlgoCore):
                 if game_state.can_spawn(WALL, wall_location):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
                 
-
-     
-
-        
-
     def build_reactive_defense(self, game_state):
         """
         This function builds reactive defenses based on where the enemy scored on us from.
@@ -431,7 +426,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             dmg += self.max_damage(loc, game_state)
         return dmg
 
-
+Git
 if __name__ == "__main__":
     algo = AlgoStrategy()
     algo.start()
