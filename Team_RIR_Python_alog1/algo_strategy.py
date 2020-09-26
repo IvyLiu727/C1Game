@@ -411,7 +411,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                         total_units += 1
         return total_units
 
-    def thresh_by_round(self, round_num):
+    def thresh_by_round(round_num):
         rst = 0
         if round_num < 10:
             rst = 4 * math.floor(round_num/2.5)
@@ -428,6 +428,31 @@ class AlgoStrategy(gamelib.AlgoCore):
         for loc in path:
             dmg += self.max_damage(loc, game_state)
         return dmg
+
+    # helper for left_or_right
+    def find_damage_at_endpoint_from_start(self, game_state, start_point):
+        edge = game_state.game_map.TOP_RIGHT
+        if start_point[0] == 14:
+            edge = game_state.game_map.TOP_LEFT
+        path = game_state.find_path_to_edge(start_point, edge)
+        return self.max_damage(path[-1], game_state)
+
+    # choose from either [13,0] or [14,0] to deploy the scouts
+    # depending on the defense focus of enemy
+    # returns 0 if choose [13, 0];
+    # returns 1 if choose [14, 0];
+    # returns -1 if either (i.e same)
+    def choose_start_point(self, game_state):
+        start1 = [13, 0]
+        start2 = [14, 0]
+        damage1 = self.find_damage_at_endpoint_from_start(start1, game_state)
+        damage2 = self.find_damage_at_endpoint_from_start(start2, game_state)
+        if damage1 == damage2:
+            return -1
+        elif damage1 < damage2:
+            return 0
+        else:
+            return 1
 
 
 if __name__ == "__main__":
