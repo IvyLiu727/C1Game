@@ -19,6 +19,8 @@ Advanced strategy tips:
   the actual current map state.
 """
 
+
+
 class AlgoStrategy(gamelib.AlgoCore):
     def __init__(self):
         super().__init__()
@@ -196,6 +198,13 @@ class AlgoStrategy(gamelib.AlgoCore):
         if path == None:
             return
         end_pt = path[-1]
+
+        # Deploy interceptor to dynamically defend
+        intcpter_num = self.thresh_intcpter(self.turn_number)
+        df_list = [[1,12], [26,12], [2,11], [25,11], [3,10], [24,10], [4,9], [23,9]]
+        for i in range(0, intcpter_num):
+            game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
+            game_state.attempt_spawn(INTERCEPTOR, df_list[i+1], 1)
 
         # Decide whether to deploy scouts or not
         percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
@@ -470,6 +479,16 @@ class AlgoStrategy(gamelib.AlgoCore):
         for loc in path:
             dmg += self.get_damage_at_location(loc, game_state)
         return dmg
+
+    def thresh_intcpter(self):
+        if round < 3:
+            return 1
+        elif 3 <= round < 5:
+            return 2
+        elif 5 <= round <= 8:
+            return 3
+        else:
+            return 4
 
     # helper for choose_start_point
     def find_damage_at_endpoint_from_start(self, game_state, start_point):
