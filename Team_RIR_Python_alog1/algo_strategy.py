@@ -60,11 +60,12 @@ class AlgoStrategy(gamelib.AlgoCore):
 
 
         # AR = Attack Range, AD = Attack Damage
-        global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
+        global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, SCOUT_HP, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
         TURRET_AR = config["unitInformation"][2]["attackRange"]
         TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
         SCOUT_AR = config["unitInformation"][3]["attackRange"]
         SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"] 
+        SCOUT_HP = config["unitInformation"][3]["startHealth"] 
         DEMOLISHER_AR = config["unitInformation"][4]["attackRange"]
         DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"] 
         INTERCEPTOR_AR = config["unitInformation"][5]["attackRange"]
@@ -160,27 +161,59 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         ## * DEPLOY
         # If the turn is less than 5, stall with interceptors and wait to see enemy's base
-        if game_state.turn_number < 5:
-            self.stall_with_interceptors(game_state)
-        else:
-            # Now let's analyze the enemy base to see where their defenses are concentrated.
-            # If they have many units in the front we can build a line for our demolishers to attack them at long range.
-            if self.detect_enemy_unit(game_state, unit_type=None, valid_x=None, valid_y=[14, 15]) > 10:
-                self.demolisher_line_strategy(game_state)
-            else:
-                # They don't have many units in the front so lets figure out their least defended area and send Scouts there.
+        # ------------------------------------ original strategy ------------------------------------
+        # if game_state.turn_number < 5:
+        #     self.stall_with_interceptors(game_state)
+        # else:
+        #     # Now let's analyze the enemy base to see where their defenses are concentrated.
+        #     # If they have many units in the front we can build a line for our demolishers to attack them at long range.
+        #     if self.detect_enemy_unit(game_state, unit_type=None, valid_x=None, valid_y=[14, 15]) > 10:
+        #         self.demolisher_line_strategy(game_state)
+        #     else:
+        #         # They don't have many units in the front so lets figure out their least defended area and send Scouts there.
 
-                # Only spawn Scouts every other turn
-                # Sending more at once is better since attacks can only hit a single scout at a time
-                if game_state.turn_number % 2 == 1:
-                    # To simplify we will just check sending them from back left and right
-                    scout_spawn_location_options = [[13, 0], [14, 0]]
-                    best_location = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
-                    game_state.attempt_spawn(SCOUT, best_location, 1000)
+        #         # Only spawn Scouts every other turn
+        #         # Sending more at once is better since attacks can only hit a single scout at a time
+        #         if game_state.turn_number % 2 == 1:
+        #             # To simplify we will just check sending them from back left and right
+        #             scout_spawn_location_options = [[13, 0], [14, 0]]
+        #             best_location = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
+        #             game_state.attempt_spawn(SCOUT, best_location, 1000)
 
+        #         # Lastly, if we have spare SP, let's build some Factories to generate more resources
+        #         factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
+        #         game_state.attempt_spawn(FACTORY, factory_locations)
+
+        # ------------------------------------ our naive strategy ------------------------------------
+        # Choose a start point from [[13, 0], [14, 0]]
+        start_pt = self.choose_start_point(game_state)
+
+        # Get the corresponding edge and end location
+        edge = game_state.game_map.TOP_RIGHT
+        if start_pt[0] == 14:
+            edge = game_state.game_map.TOP_LEFT
+        path = game_state.find_path_to_edge(start_pt, edge)
+        if path == None:
+            return
+        end_pt = path[-1]
+
+        # Decide whether to deploy scouts or not
+        percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
+        deploy_threshold = 0.5
+        total_MP = game_state.get_resource(1, 0) # MP (1), 0 - us
+        MP_for_scounts = math.floor(total_MP * percentage_for_scount)
+        total_health_of_scounts = MP_for_scounts * SCOUT_HP
+        max_receiveable_damage = self.get_damage_at_location(end_pt, game_state)
+        if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
+            game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
+
+
+<<<<<<< HEAD
                 # # Lastly, if we have spare SP, let's build some Factories to generate more resources
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
+=======
+>>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
 
     ## * init_setup will set up the units and structures at the begining
     def init_setup(self, game_state):
@@ -200,10 +233,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.factory_locations = [[13,2],[14,2],self.factory_left_wing, self.factory_right_wing]
         self.units[FACTORY] += game_state.attempt_spawn(FACTORY, self.factory_locations)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
     # calculates the maximum damage a unit will take at location,
     # which is a list with two elements representing x, y coordinates, 
     # returns an integer
-    def max_damage(location, game_state):
+    def get_damage_at_location(self, location, game_state):
         x = location[0]
         y = location[1]
         damage = 0
@@ -250,12 +287,18 @@ class AlgoStrategy(gamelib.AlgoCore):
         # if any defenders is damaged, upgrade it
         for location in self.defenders_damaged_on_location:
             defender = self.defenders_damaged_on_location[location]
-            upgraded = self.game_state.attempt_upgrade(location)
+            upgraded = game_state.attempt_upgrade(location)
             if upgraded == 0 and defender == TURRET:
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
+<<<<<<< HEAD
                 
+=======
+
+        
+
+>>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
     def build_reactive_defense(self, game_state):
         """
         This function builds reactive defenses based on where the enemy scored on us from.
@@ -408,7 +451,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                         total_units += 1
         return total_units
 
-    def thresh_by_round(self, round_num):
+    def thresh_by_round(round_num):
         rst = 0
         if round_num < 10:
             rst = 4 * math.floor(round_num/2.5)
@@ -423,10 +466,38 @@ class AlgoStrategy(gamelib.AlgoCore):
     def thresh_by_dmg(self, game_state, path):
         dmg = 0
         for loc in path:
-            dmg += self.max_damage(loc, game_state)
+            dmg += self.get_damage_at_location(loc, game_state)
         return dmg
 
+<<<<<<< HEAD
 Git
+=======
+    # helper for choose_start_point
+    def find_damage_at_endpoint_from_start(self, game_state, start_point):
+        edge = game_state.game_map.TOP_RIGHT
+        if start_point[0] == 14:
+            edge = game_state.game_map.TOP_LEFT
+        path = game_state.find_path_to_edge(start_point, edge)
+        if path == None:
+            return float('inf') 
+        else:
+            return self.get_damage_at_location(path[-1], game_state)
+
+    # choose from either [13,0] or [14,0] to deploy the scouts
+    # depending on the defense focus of enemy
+    # returns starting location
+    def choose_start_point(self, game_state):
+        start1 = [13, 0]
+        start2 = [14, 0]
+        damage1 = self.find_damage_at_endpoint_from_start(game_state, start1)
+        damage2 = self.find_damage_at_endpoint_from_start(game_state, start2)
+        if damage1 <= damage2:
+            return [13, 0]
+        else:
+            return [14, 0]
+
+
+>>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
 if __name__ == "__main__":
     algo = AlgoStrategy()
     algo.start()
