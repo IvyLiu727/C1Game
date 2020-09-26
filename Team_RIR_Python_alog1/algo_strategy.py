@@ -85,7 +85,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.defenders_damaged_on_location = {} ## * record what position our denfenders got damaged, key is location and val is unity string type
         self.defenders_dead_on_location = {} ## * record what position our denfenders got destroyed, key is location and val is unity string type
         self.factory_left_wing = [12,3]
-        self.factory_right_wing = [14,3]
+        self.factory_right_wing = [15,3]
         self.factory_locations = []
         ## * self.units with 
         ## * key: Unit type
@@ -208,12 +208,9 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
 
 
-<<<<<<< HEAD
                 # # Lastly, if we have spare SP, let's build some Factories to generate more resources
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
-=======
->>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
 
     ## * init_setup will set up the units and structures at the begining
     def init_setup(self, game_state):
@@ -233,10 +230,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.factory_locations = [[13,2],[14,2],self.factory_left_wing, self.factory_right_wing]
         self.units[FACTORY] += game_state.attempt_spawn(FACTORY, self.factory_locations)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
     # calculates the maximum damage a unit will take at location,
     # which is a list with two elements representing x, y coordinates, 
     # returns an integer
@@ -262,7 +256,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.units[defender] += game_state.attempt_spawn(defender, location)
         
         ## build factory
-        threshold = 3
+        threshold = 1
         factory_affordable = game_state.number_affordable(FACTORY)
         gamelib.debug_write("factory affordable:{}".format(game_state.number_affordable(FACTORY)))
         if game_state.number_affordable(FACTORY) > threshold:
@@ -270,19 +264,19 @@ class AlgoStrategy(gamelib.AlgoCore):
             # * mod 2 = 0, left wing
             # * mod 2 =1, right wing
             location = None
-            for (i in range(fatory_affordable)):
-                if len(self.factory_locations) % 2 == 0:
+            for _ in range(factory_affordable):
+                if self.units[FACTORY] % 2 == 0:
                     x,y = self.factory_left_wing
-                    self.factory_left_wing = [x-1,y+1]
+                    self.factory_leuft_wing = [x-1,y+1]
                     location = self.factory_left_wing
                 else:
                     x,y = self.factory_right_wing
                     self.factory_right_wing = [x+1,y+1]
                     location  = self.factory_right_wing 
-                self.factory_locations.append(location)
+
                 if game_state.can_spawn(FACTORY,location):
                     self.units[FACTORY] += game_state.attempt_spawn(FACTORY,location)
-            
+                
         
         # if any defenders is damaged, upgrade it
         for location in self.defenders_damaged_on_location:
@@ -292,13 +286,8 @@ class AlgoStrategy(gamelib.AlgoCore):
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
-<<<<<<< HEAD
-                
-=======
 
         
-
->>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
     def build_reactive_defense(self, game_state):
         """
         This function builds reactive defenses based on where the enemy scored on us from.
@@ -469,9 +458,6 @@ class AlgoStrategy(gamelib.AlgoCore):
             dmg += self.get_damage_at_location(loc, game_state)
         return dmg
 
-<<<<<<< HEAD
-Git
-=======
     # helper for choose_start_point
     def find_damage_at_endpoint_from_start(self, game_state, start_point):
         edge = game_state.game_map.TOP_RIGHT
@@ -485,7 +471,7 @@ Git
 
     # choose from either [13,0] or [14,0] to deploy the scouts
     # depending on the defense focus of enemy
-    # returns starting location
+    # returns starting locationu
     def choose_start_point(self, game_state):
         start1 = [13, 0]
         start2 = [14, 0]
@@ -497,7 +483,6 @@ Git
             return [14, 0]
 
 
->>>>>>> 27795ac2c4b36a034a22905d570f831fc21cab23
 if __name__ == "__main__":
     algo = AlgoStrategy()
     algo.start()
