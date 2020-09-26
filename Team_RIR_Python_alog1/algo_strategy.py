@@ -219,6 +219,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     ## 1. build defenders if any is destroyed
     ## 2. upgrade defenders if any is damaged
     def production_or_defense(self, game_state):
+        gamelib.debug_write("hello")
         # if any denfenders are destoryed, rebuild
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
@@ -226,6 +227,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         
         ## build factory
         threshold = 3
+        gamelib.debug_write("factory affordable:{}".format(game_state.number_affordable(FACTORY)))
         if game_state.number_affordable(FACTORY) > threshold:
             # * alternating factory left and right wing
             # * mod 2 = 0, left wing
@@ -237,9 +239,9 @@ class AlgoStrategy(gamelib.AlgoCore):
                 location = self.factory_left_wing
             else:
                 x,y = self.factory_right_wing
-                self.factory_right_wing[x+1,y+1]
+                self.factory_right_wing = [x+1,y+1]
                 location  = self.factory_right_wing 
-            
+            self.factory_locations.append(location)
             if game_state.can_spawn(FACTORY,location):
                 self.units[FACTORY] += game_state.attempt_spawn(FACTORY,location)
             
@@ -247,7 +249,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         # if any defenders is damaged, upgrade it
         for location in self.defenders_damaged_on_location:
             defender = self.defenders_damaged_on_location[location]
-            upgraded = self.game_state.attempt_upgrade(defender, location)
+            upgraded = self.game_state.attempt_upgrade(location)
             if upgraded == 0 and defender == TURRET:
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
