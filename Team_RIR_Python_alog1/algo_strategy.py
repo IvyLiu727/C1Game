@@ -32,13 +32,24 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
         gamelib.debug_write('Configuring your custom algo strategy...')
         self.config = config
-        global WALL, FACTORY, TURRET, SCOUT, DEMOLISHER, INTERCEPTOR, MP, SP
+        global WALL, FACTORY, TURRET, SCOUT, DEMOLISHER, INTERCEPTOR, MP, SP, UNIT_TYPE_TO_INDEX
+        UNIT_TYPE_TO_INDEX = {}
         WALL = config["unitInformation"][0]["shorthand"]
+        UNIT_TYPE_TO_INDEX[WALL] = 0
         FACTORY = config["unitInformation"][1]["shorthand"]
+        UNIT_TYPE_TO_INDEX[FACTORY] = 1
         TURRET = config["unitInformation"][2]["shorthand"]
+        UNIT_TYPE_TO_INDEX[TURRET] = 2
         SCOUT = config["unitInformation"][3]["shorthand"]
+        UNIT_TYPE_TO_INDEX[SCOUT] = 3
         DEMOLISHER = config["unitInformation"][4]["shorthand"]
+        UNIT_TYPE_TO_INDEX[DEMOLISHER] = 4
         INTERCEPTOR = config["unitInformation"][5]["shorthand"]
+        UNIT_TYPE_TO_INDEX[INTERCEPTOR] = 5
+        REMOVE = config["unitInformation"][6]["shorthand"]
+        UNIT_TYPE_TO_INDEX[REMOVE] = 6
+        UPGRADE = config["unitInformation"][7]["shorthand"]
+        UNIT_TYPE_TO_INDEX[UPGRADE] = 7
         MP = 1
         SP = 0
 
@@ -57,6 +68,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         global TURRET_UP_AR, TURRET_UP_AD
         TURRET_UP_AR = config["unitInformation"][2]["upgrade"]["attackRange"]
         TURRET_UP_AD = config["unitInformation"][2]["upgrade"]["attackDamageWalker"]
+
+        # records the latest factory location been placed on arena
+        # index 0 for left wing, 1 for right wind
+        global factory_next_location
+        factory_next_location=[[13, 2]
 
         # This is a good place to do initial setup
         self.scored_on_locations = []
@@ -162,29 +178,18 @@ class AlgoStrategy(gamelib.AlgoCore):
         Build basic defenses using hardcoded locations.
         Remember to defend corners and avoid placing units in the front where enemy demolishers can attack them.
         """
-   
+
+
         # Place turrets that attack enemy units
-        turret_locations = [[3,12],[24,12]]
+        turret_locations = [[4,12],[23,12],[14,11]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         self.units[TURRET] = game_state.attempt_spawn(TURRET, turret_locations)
     
-        
-        # Place walls in front of turrets to soak up damage for them
-        wall_locations = [[3,13],[24,13]]
-        game_state.attempt_spawn(WALL, wall_locations)
-        # upgrade walls so they soak more damage
-        self.units[WALL] = game_state.attempt_upgrade(wall_locations)
-        
+    
         #Place upggraded factories at the deepest location
-        self.factory_locations = [[13,3],[14,3]]
+        self.factory_locations = [[13,3],[14,3],[13,4],[14,4]]
         self.units[FACTORY] = game_state.attempt_spawn(FACTORY, self.factory_locations)
         # game_state.attempt_upgrade(self.factory_locations)
-        
-        ## ! factory placement is not dynamic/reactive
-        #pre-calculated fatroy locations -- basically hard-coded
-        for y in range(6):
-            for x in range(4):
-                self.factory_locations.append([12 + x,4 + y])
 
     # calculates the maximum damage a unit will take at location,
     # which is a list with two elements representing x, y coordinates, 
@@ -202,34 +207,30 @@ class AlgoStrategy(gamelib.AlgoCore):
             damage += attacker.damage_i
         return damage
 
-    # decides production or defence
-    # retruns True if factory is prioirtizes over walls + turrects,
-    # False otherwise
-    def is_production(self, game_state):
-        # if no defenders are damaged, we just keep increase the number of factories
-        defenders = [WALL, TURRET]
-        death_ratio ={defender: 0 for defender in defenders}
-        
+  
+    ## decides to build factory or defense
+    ## * Prioirty:
+    ## 1. build defenders if any is destroyed
+    ## 2. upgrade defenders if any is damaged
+    def build_production_or_defense(self, game_state):
         for location in self.defenders_dead_on_location:
-            defender = self.defenders_dead_on_location
-            death_ratio[defender] += 1
-
-        for defender in defenders:
-            defender_count = death_ratio[defender]
-            death_ratio[defender] = defender_count / self.units[defenders]
+            defender = self.defenders_dead_on_location[location]
+            ## if unit is a Factory
+            defender_type = WALL if defender == 0 else TURRET
+            self.units[defender_type] += game_state.attempt_spawn(defender_type, location)
+        
+        for location in self.defenders_damaged_on_location:
+            defender = self.defenders_damaged_on_location[location]
+            defender_type = WALL if defender_type == 0 else TURRET
+            self.units[defender_type] += game_state.attempt_spawn(defender_type, location)
+        
+        threshold = 3
+        if game_state.number_affordable(FACTORY) > threshold:
+            factory_next_location = [factory_next_location[0] + 1, factory_next_location[1] + 1]
+            if game_state.can_spawn(FACTORY, factory_next_location):
+                self.units[FACTORY] += game_state.attempt_spawn(FACTORY, factory_next_location)
             
             
-        
-        
-
-
-        is_defender_damaged = False
-        if not is_defender_damaged:
-            self.build_factory(game_state)
-        else:
-            self.build_reactive_defense(game_state)
-        
-        return True
     
     def build_factory(self,game_state):
         self.units[FACTORY] += game_state.attempt_spawn(FACTORY,self.factory_locations[self.units])
@@ -288,7 +289,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         damages = events["damage"]
         deaths = events["death"]
 
-        defenders = [WALL, TURRET]
+        defenders = [UNIT_TYPE_TO_INDEX[WALL], UNIT_TYPE_TO_INDEX[TURRET]]
         # Record what position our defender gets damaged
         ## * defenders_on_location is a dictionary with 
         ## key: location, key location will always be unique since stationary unit can't occupy the same location
@@ -297,7 +298,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.defenders_dead_on_location = {}
         # defender = None
         for damaged in damages:
-            location =tuple(damaged[0])
+            location = tuple(damaged[0])
             unit_owner_self = True if damaged[4] == 1 else False
             #check if unit is a denfender, return -1 if it's a mobile
             defender = damaged[2] if damaged[2] in defenders else -1
