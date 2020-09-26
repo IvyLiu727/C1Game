@@ -198,6 +198,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.units[FACTORY] += game_state.attempt_spawn(FACTORY, self.factory_locations)
 
 
+
+
+
     # calculates the maximum damage a unit will take at location,
     # which is a list with two elements representing x, y coordinates, 
     # returns an integer
@@ -423,7 +426,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     def thresh_by_dmg(self, game_state, path):
         dmg = 0
         for loc in path:
-            dmg += max_damage(loc, game_state)
+            dmg += self.max_damage(loc, game_state)
         return dmg
 
 
