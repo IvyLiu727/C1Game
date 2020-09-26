@@ -194,13 +194,11 @@ class AlgoStrategy(gamelib.AlgoCore):
     # calculates the maximum damage a unit will take at location,
     # which is a list with two elements representing x, y coordinates, 
     # returns an integer
-    def max_damage (location, game_state):
+    def max_damage(location, game_state):
         x = location[0]
         y = location[1]
         damage = 0
-        # Our mobile unit is in our half of the arena
-        if y < 14:
-            return 0
+
         # Our mobile unit is in enemy‘s half of the arena
         attackers = game_state.get_attackers(location, 0)
         for attacker in attackers:
@@ -401,6 +399,25 @@ class AlgoStrategy(gamelib.AlgoCore):
                     if unit.player_index == 1 and (unit_type is None or unit.unit_type == unit_type) and (valid_x is None or location[0] in valid_x) and (valid_y is None or location[1] in valid_y):
                         total_units += 1
         return total_units
+
+    def thresh_by_round(self, round_num):
+        rst = 0
+        if round_num < 10:
+            rst = 4 * math.floor(round_num/2.5)
+        elif round_num < 20:
+            rst = 4 * math.floor(round_num/3)
+        elif round_num < 30:
+            rst = 4 * math.floor(round_num/4)
+        else:
+            rst = 36
+        return rst
+
+    def thresh_by_dmg(self, game_state, path):
+        dmg = 0
+        for loc in path:
+            dmg += max_damage(loc, game_state)
+        return dmg
+
 
 if __name__ == "__main__":
     algo = AlgoStrategy()
