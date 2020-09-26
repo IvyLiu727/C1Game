@@ -250,7 +250,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         # if any defenders is damaged, upgrade it
         for location in self.defenders_damaged_on_location:
             defender = self.defenders_damaged_on_location[location]
-            upgraded = self.game_state.attempt_upgrade(location)
+            upgraded = game_state.attempt_upgrade(location)
             if upgraded == 0 and defender == TURRET:
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
