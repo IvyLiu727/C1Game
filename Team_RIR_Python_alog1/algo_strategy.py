@@ -1,10 +1,10 @@
-import gamelib
-import random
+import json
 import math
+import random
 import warnings
 from sys import maxsize
-import json
 
+import gamelib
 
 """
 Most of the algo code you write will be in this file unless you create new
@@ -97,7 +97,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.health = 0 ## * our health each turn
 
         self.remain_turrects = [[8,10], [19,10], [2,13], [25,13], [6,12], [21,12], [9,12], [18,12]]
-        self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
+        # self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
 
         
     def on_turn(self, turn_state):
@@ -148,7 +148,6 @@ class AlgoStrategy(gamelib.AlgoCore):
     """        
 
     def starter_strategy(self, game_state):
-    
         # First, setup initial mobiles and units:
         if game_state.turn_number == 0:
             self.init_setup(game_state)
@@ -156,7 +155,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         ## * DEFENSE AND PRODUCTION
         # Walls and Turrects or Factories decisions:
         self.production_or_defense(game_state)
-        self.build_reactive_defense(game_state)
 
         # Now build reactive defenses based on where the enemy scored
         # self.build_reactive_defense(game_state)
@@ -189,6 +187,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         # ------------------------------------ our naive strategy ------------------------------------
         # Choose a start point from [[13, 0], [14, 0]]
+
         start_pt = self.choose_start_point(game_state)
 
         # Get the corresponding edge and end location
@@ -258,10 +257,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         # if any denfenders are destoryed, rebuild
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
-            pre = self.units[defender]
-            self.units[defender] += game_state.attempt_spawn(defender, location)
-            num = self.units[defender] - pre
-            self.structure_point -= 2 * num
+            succeed += game_state.attempt_spawn(defender, location)
+            self.units[defender] += succeed
+            self.structure_point -= game_state.type_cost(defender)[SP] * succeed
     
     def build_factory(self, game_state, customized, type):
         ## build factory
@@ -325,21 +323,6 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.remain_turrects = self.remain_turrects[j-1:]
 
 
-    def build_additional_turrets(self, game_state):
-        turret_affordable = game_state.number_affordable(TURRET)
-        if turret_affordable > 0:
-            n = len(self.additional_turrets)
-
-            j = 0
-            for i in range(n):
-                location = self.additional_turrets[i]
-                if game_state.can_spawn(TURRET, location):
-                    j += 1
-                    self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
-            self.additional_turrets = self.additional_turrets[j-1:]
-
-
-
     ## decides to build factory or defense
     ## * Prioirty:
     ## 1. build defenders if any is destroyed
@@ -357,19 +340,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                                                                   math.floor(game_state.turn_number/10) * 2), 2)
 
        self.reinforce_defenders(game_state)
-       self.build_additional_turrets(game_state)
 
-        
-    def build_reactive_defense(self, game_state):
-        """
-        This function builds reactive defenses based on where the enemy scored on us from.
-        We can track where the opponent scored by looking at events in action frames 
-        as shown in the on_action_frame function
-        """
-        for location in self.scored_on_locations:
-            # Build turret one space above so that it doesn't block our own edge spawn locations
-            build_location = [location[0], location[1]+1]
-            game_state.attempt_spawn(TURRET, build_location)
          
      ## return a list of non-stationary locations   
     def filter_blocked_locations(self, locations, game_state):
