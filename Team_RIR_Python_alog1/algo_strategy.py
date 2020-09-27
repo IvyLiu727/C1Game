@@ -207,7 +207,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
 
         # Decide whether to deploy scouts or not （Ivy's idea)
-        percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
+        percentage_for_scount = 1  # Assumption: use 80% of MP to deploy scouts
         deploy_threshold = 0.5
         total_MP = game_state.get_resource(1, 0) # MP (1), 0 - us
         MP_for_scounts = math.floor(total_MP * percentage_for_scount)
