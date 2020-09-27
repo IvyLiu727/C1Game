@@ -1,4 +1,3 @@
-from Team_RIR_Python_alog1.gamelib import game_state
 import gamelib
 import random
 import math
@@ -156,10 +155,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         ## * DEFENSE AND PRODUCTION
         # Walls and Turrects or Factories decisions:
         self.production_or_defense(game_state)
-        self.build_reactive_defense(game_state)
-
-        # Now build reactive defenses based on where the enemy scored
-        # self.build_reactive_defense(game_state)
 
 
         ## * DEPLOY
@@ -313,7 +308,7 @@ class AlgoStrategy(gamelib.AlgoCore):
        self.rebuild_defender(game_state)
        ## place the reamaining turrect layout, if possible
        self.build_remaining_turrect(game_state)
-       
+       self.build_reactive_defense(game_state)
        self.build_factory(game_state)
        self.reinforce_defenders(game_state)
         
@@ -323,10 +318,17 @@ class AlgoStrategy(gamelib.AlgoCore):
         We can track where the opponent scored by looking at events in action frames 
         as shown in the on_action_frame function
         """
+        prev_y = -100
+        threshold = 2
         for location in self.scored_on_locations:
-            # Build turret one space above so that it doesn't block our own edge spawn locations
-            build_location = [location[0], location[1]+1]
-            game_state.attempt_spawn(TURRET, build_location)
+            if location[0]> 14:
+                build_location = [location[0]-1, location[1]]
+            elif location[0]<13:
+                build_location = [location[0] + 1, location[1]]
+            
+        if abs(prev_y - location[1]) > threshold:
+            if game_state.can_spawn(TURRET):
+                self.units[TURRET] += game_state.attempt_spawn(TURRET, build_location)
          
      ## return a list of non-stationary locations   
     def filter_blocked_locations(self, locations, game_state):
@@ -389,12 +391,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         for breach in breaches:
             location = breach[0]
             unit_owner_self = True if breach[4] == 1 else False
-            # When parsing the frame data directly, 
-            # 1 is integer for yourself, 2 is opponent (StarterKit code uses 0, 1 as player_index instead)
             if not unit_owner_self:
                 gamelib.debug_write("Got scored on at: {}".format(location))
                 self.scored_on_locations.append(location)
                 # gamelib.debug_write("All locations: {}".format(self.scored_on_locations))
+            self.scored_on_locations = sorted(key=lambda x:x[1], reverse=True)
 
     def stall_with_interceptors(self, game_state):
         """
