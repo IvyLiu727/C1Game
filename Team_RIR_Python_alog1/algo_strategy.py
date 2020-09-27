@@ -1,3 +1,4 @@
+from Team_RIR_Python_alog1.gamelib import game_state
 import gamelib
 import random
 import math
@@ -56,7 +57,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         SP = 0
         UNITS = [WALL, FACTORY, TURRET, SCOUT, DEMOLISHER, INTERCEPTOR]
         INDEX_TO_UNIT_TYPE = {v:k for k,v in UNIT_TYPE_TO_INDEX.items()}
-        
 
 
 
@@ -96,7 +96,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.structure_point = 0 ## * our sp on each turn
         self.mobile_points = 0 ## * our mp on each turn
         self.health = 0 ## * our health each turn
-        
+
+        self.remain_turrects = [[9,10], [19,10]]       
 
         
     def on_turn(self, turn_state):
@@ -200,7 +201,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         end_pt = path[-1]
 
         # Deploy interceptor to dynamically defend
-        intcpter_num = self.thresh_intcpter(self.turn_number)
+        intcpter_num = self.thresh_intcpter(game_state.turn_number)
         df_list = [[1,12], [26,12], [2,11], [25,11], [3,10], [24,10], [4,9], [23,9]]
         for i in range(0, intcpter_num):
             game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
@@ -215,8 +216,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         max_receiveable_damage = self.get_damage_at_location(end_pt, game_state)
         if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
             game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
-
-
                 # # Lastly, if we have spare SP, let's build some Factories to generate more resources
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
@@ -228,13 +227,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         Remember to defend corners and avoid placing units in the front where enemy demolishers can attack them.
         """
 
-
         # Place turrets that attack enemy units
-        self.turret_locations = [[4,12],[23,12],[14,11]]
+        turret_locations = [[4,12],[23,12],[14,11]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
-        self.units[TURRET] += game_state.attempt_spawn(TURRET, self.turret_locations)
-        self.turrect_locations = [[4,12],[23,12],[14,11], [9,10], [19,10]]
-    
+        self.units[TURRET] += game_state.attempt_spawn(TURRET, turret_locations)
     
         #Place upggraded factories at the deepest location
         factory_locations = [[13,2],[14,2],self.factory_left_wing, self.factory_right_wing]
@@ -253,7 +249,6 @@ class AlgoStrategy(gamelib.AlgoCore):
             damage += attacker.damage_i
         return damage
 
-
     def rebuild_defender(self, game_state):
         # if any denfenders are destoryed, rebuild
         for location in self.defenders_dead_on_location:
@@ -264,7 +259,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         ## build factory
         threshold = 1
         factory_affordable = game_state.number_affordable(FACTORY)
-        gamelib.debug_write("factory affordable:{}".format(game_state.number_affordable(FACTORY)))
+        # gamelib.debug_write("factory affordable:{}".format(game_state.number_affordable(FACTORY)))
         if game_state.number_affordable(FACTORY) > threshold:
             # * alternating factory left and right wing
             # * mod 2 = 0, left wing
@@ -274,7 +269,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             for _ in range(factory_affordable):
                 if self.units[FACTORY] % 2 == 0:
                     x,y = self.factory_left_wing
-                    self.factory_leuft_wing = [x-1,y+1]
+                    self.factory_left_wing = [x-1,y+1]
                     location = self.factory_left_wing
                 else:
                     x,y = self.factory_right_wing
@@ -284,7 +279,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 if game_state.can_spawn(FACTORY,location):
                     self.units[FACTORY] += game_state.attempt_spawn(FACTORY,location)
 
-
+    ## reinfore deenders: i.e defenders are damaged and need reinforement
     def reinforce_defenders(self, game_state):
          # if any defenders is damaged, upgrade it
         for location in self.defenders_damaged_on_location:
@@ -296,19 +291,31 @@ class AlgoStrategy(gamelib.AlgoCore):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
 
 
+    def build_remaining_turrect(self, game_state):
+        turrect_affordable = game_state.number_affordable(TURRET)
+        if turrect_affordable > 0:
+            n = len(self.remain_turrects)
+            j = 0
+            for i in range(n):
+                location = self.remain_turrects[i]
+                if game_state.can_spawn(TURRET,location):
+                    j += 1
+                    self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
+            self.remain_turrects = self.remain_turrects[j-1:]
+            
+
     ## decides to build factory or defense
     ## * Prioirty:
     ## 1. build defenders if any is destroyed
     ## 2. upgrade defenders if any is damaged
     def production_or_defense(self, game_state):
+       global remain_pos
        self.rebuild_defender(game_state)
+       ## place the reamaining turrect layout, if possible
+       self.build_remaining_turrect(game_state)
+       
        self.build_factory(game_state)
        self.reinforce_defenders(game_state)
-
-
-        
-    
-      
         
     def build_reactive_defense(self, game_state):
         """
@@ -480,7 +487,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             dmg += self.get_damage_at_location(loc, game_state)
         return dmg
 
-    def thresh_intcpter(self):
+    def thresh_intcpter(self, round):
         if round < 3:
             return 1
         elif 3 <= round < 5:
