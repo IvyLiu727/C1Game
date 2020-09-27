@@ -220,8 +220,12 @@ class AlgoStrategy(gamelib.AlgoCore):
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
 
-        if MP_for_scounts > self.thresh_by_round(game_state.turn_number):
-            game_state.attempt_spawn(SCOUT, start_pt, math.floor(total_MP))
+        if game_state.turn_number < 5:
+            if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
+                game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
+        else:
+            if MP_for_scounts > self.thresh_by_round(game_state.turn_number):
+                game_state.attempt_spawn(SCOUT, start_pt, math.floor(total_MP))
 
     ## * init_setup will set up the units and structures at the begining
     def init_setup(self, game_state):
