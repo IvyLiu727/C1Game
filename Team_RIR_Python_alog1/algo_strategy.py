@@ -61,7 +61,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
 
         # AR = Attack Range, AD = Attack Damage
-        global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUNT_AD, SCOUT_HP, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
+        global TURRET_AR, TURRET_AD, SCOUT_AR, SCOUT_AD, SCOUT_HP, DEMOLISHER_AR, DEMOLISHER_AD, INTERCEPTOR_AR, INTERCEPTOR_AD
         TURRET_AR = config["unitInformation"][2]["attackRange"]
         TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
         SCOUT_AR = config["unitInformation"][3]["attackRange"]
@@ -208,21 +208,21 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(INTERCEPTOR, df_list[i+1], 1)
 
         # Decide whether to deploy scouts or not （Ivy's idea)
-        percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
+        percentage_for_scout = 0.8  # Assumption: use 80% of MP to deploy scouts
         deploy_threshold = 0.5
         total_MP = game_state.get_resource(1, 0) # MP (1), 0 - us
-        MP_for_scounts = math.floor(total_MP * percentage_for_scount)
-        total_health_of_scounts = MP_for_scounts * SCOUT_HP
+        MP_for_scouts = math.floor(total_MP * percentage_for_scout)
+        total_health_of_scouts = MP_for_scouts * SCOUT_HP
         max_receiveable_damage = self.get_damage_at_location(end_pt, game_state)
 
         # Temporarily hold
-        #if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
-        #    game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
+        #if max_receiveable_damage < total_health_of_scouts * deploy_threshold:
+        #    game_state.attempt_spawn(SCOUT, start_pt, MP_for_scouts)
                 # # Lastly, if we have spare SP, let's build some Factories to generate more resources
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
 
-        if MP_for_scounts > self.thresh_by_round(game_state.turn_number):
+        if MP_for_scouts > self.thresh_by_round(game_state.turn_number):
             game_state.attempt_spawn(SCOUT, start_pt, math.floor(total_MP))
 
     ## * init_setup will set up the units and structures at the begining
