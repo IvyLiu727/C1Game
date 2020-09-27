@@ -88,15 +88,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.factory_left_wing = [12,3]
         self.factory_right_wing = [15,3]
         self.factory_locations = []
-        ## * self.units with 
-        ## * key: Unit type
-        ## * val: Number of units in our arena
-        self.units = {unit: 0 for unit in UNITS}
         self.structure_point = 0 ## * our sp on each turn
         self.mobile_points = 0 ## * our mp on each turn
         self.health = 0 ## * our health each turn
 
-        self.remain_turrects = [[8,11],[19,11]] 
+        ## * TURRET
+        self.turret_left_wing = [3,12]
+        self.turret_right_wing= [24,12]
+        # self.remain_turrects = [[8,11],[19,11]] 
         # self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
 
         
@@ -207,7 +206,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
 
         # Decide whether to deploy scouts or not （Ivy's idea)
-        percentage_for_scount = 1  # Assumption: use 80% of MP to deploy scouts
+        percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
         deploy_threshold = 0.5
         total_MP = game_state.get_resource(1, 0) # MP (1), 0 - us
         MP_for_scounts = math.floor(total_MP * percentage_for_scount)
@@ -238,13 +237,13 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
 
         # Place turrets that attack enemy units
-        turret_locations = [[3,12],[24,12],[14,11]]
+        turret_locations = [self.turret_left_wing, self.turret_right_wing,[14,11]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
-        self.units[TURRET] += game_state.attempt_spawn(TURRET, turret_locations)
+        game_state.attempt_spawn(TURRET, turret_locations)
     
         #Place upggraded factories at the deepest location
         factory_locations = [[13,2],[14,2],self.factory_left_wing, self.factory_right_wing]
-        self.units[FACTORY] += game_state.attempt_spawn(FACTORY, factory_locations)
+        game_state.attempt_spawn(FACTORY, factory_locations)
 
 
     # calculates the maximum damage a unit will take at location,
@@ -264,28 +263,25 @@ class AlgoStrategy(gamelib.AlgoCore):
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
             succeed = game_state.attempt_spawn(defender, location)
-            self.units[defender] += succeed
             self.structure_point -= game_state.type_cost(defender)[SP] * succeed
     
-    def build_factory(self, game_state):
+    def build_factory(self, game_state, threshold):
         ## build factory
         threshold = 1
         factory_affordable = game_state.number_affordable(FACTORY)
         # gamelib.debug_write("factory affordable:{}".format(game_state.number_affordable(FACTORY)))
-        if game_state.number_affordable(FACTORY) >= threshold:
+        if factory_affordable >= threshold:
             # * alternating factory left and right wing
             # * mod 2 = 0, left wing
             # * mod 2 =1, right wing
             location = None
 
-        # ran = 0
-        # if type == 1:
-        #     ran = factory_affordable
-        # else:
-        #     ran = customized
+            if len(self.factory_locations) == 0:
+                self.factory_left_wing = [12,3]
+                self.factory_right_wing = [15,3]
 
-            for _ in range(factory_affordable):
-                if self.units[FACTORY] % 2 == 0:
+            for _ in range(threshold):
+                if len(self.factory_locations) % 2 == 0:
                     x,y = self.factory_left_wing
                     self.factory_left_wing = [x-1,y+1]
                     location = self.factory_left_wing
@@ -293,48 +289,53 @@ class AlgoStrategy(gamelib.AlgoCore):
                     x,y = self.factory_right_wing
                     self.factory_right_wing = [x+1,y+1]
                     location  = self.factory_right_wing 
-
                 if game_state.can_spawn(FACTORY,location):
                     succeed = game_state.attempt_spawn(FACTORY,location)
-                    self.units[FACTORY] += succeed
+                    if succeed != 0:
+                        self.factory_locations.append(location)
                     self.structure_point -= game_state.type_cost(FACTORY)[SP] * succeed
 
     ## reinfore deenders: i.e defenders are damaged and need reinforement
     def reinforce_defenders(self, game_state):
+        location = None
+        gamelib.debug_write("reinforce:{},{}".format(self.turret_left_wing, self.turret_right_wing))
+        if tuple(self.turret_left_wing) in self.defenders_damaged_on_location:
+            x,y = self.turret_left_wing
+            self.turret_left_wing =[x+1,y] 
+            location = self.turret_left_wing
+            # gamelib.debug_write("reinforce:{}".format(location))
+
+        elif tuple(self.turret_right_wing) in self.defenders_damaged_on_location:
+            x,y = self.turret_right_wing
+            self.turret_right_wing = [x-1,y]
+            location = self.turret_right_wing
+            # gamelib.debug_write("reinaforce:{}".format(location))
+        if location and game_state.can_spawn(TURRET,location):
+            succeed = game_state.attempt_spawn(TURRET,location)
+            upgraded = game_state.attempt_upgrade(location)
+
+        # if not gamelib.GameUnit(TURRET,game_state.config,self.turret_left_wing).upgraded:
+        #      upgraded = game_state.attempt_upgrade(self.turret_left_wing)
+        # elif not gamelib.GameUnit(TURRET,game_state.config,self.turret_right_wing).upgraded:
+        #     upgraded = game_state.attempt_upgrade(self.turret_right_wing)
+            
+
         for location in self.defenders_damaged_on_location:
             defender = self.defenders_damaged_on_location[location]
             upgraded = game_state.attempt_upgrade(location)
             if upgraded == 0 and defender == TURRET:
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
-                    self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
+                    game_state.attempt_spawn(WALL, wall_location) 
 
-
-
-    # def build_remaining_turrect(self, game_state):
-    #     turrect_affordable = game_state.number_affordable(TURRET)
-    #     if turrect_affordable > 0:
-    #         n = len(self.remain_turrects)
-    #         # ran = 0
-    #         # if type == 1:
-    #         #     ran = n
-    #         # else:
-    #         #     ran = min(customized,n)
-
-    #         j = 0
-    #         for i in range(turrect_affordable):
-    #             location = self.remain_turrects[i]
-    #             if game_state.can_spawn(TURRET,location):
-    #                 j += 1
-    #                 self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
-    #         self.remain_turrects = self.remain_turrects[j-1:]        
+  
 
 
 
     def reinforce_factory(self, game_state):
         for location in self.factory_locations:
             ## check whether the unit is upgraded or not
-            gamelib.debug_write("upgrade: {},{},{}".format(location, len(self.factory_locations),gamelib.GameUnit(FACTORY,game_state.config,location).upgraded))
+            # gamelib.debug_write("upgrade: {},{},{}".format(location, len(self.factory_locations),gamelib.GameUnit(FACTORY,game_state.config,location).upgraded))
             if not gamelib.GameUnit(FACTORY,game_state.config,location).upgraded:
                 succeed = game_state.attempt_upgrade(location)
                 if succeed != 0:
@@ -351,17 +352,18 @@ class AlgoStrategy(gamelib.AlgoCore):
 
        if game_state.turn_number  == 1 : 
             for location in top_edge_wall_location:
-                self.units[WALL] += game_state.attempt_spawn(WALL, location)
+                game_state.attempt_spawn(WALL, location)
                 
        elif game_state.turn_number == 2:
             for location in top_edge_wall_location:
-                self.units[WALL] += game_state.attempt_spawn(WALL, location)
+                game_state.attempt_spawn(WALL, location)
                 game_state.attempt_upgrade(location)
        else:
-            if self.units[FACTORY] < factory_limit:
-                self.build_factory(game_state)
+            if len(self.factory_locations) < factory_limit:
+                self.build_factory(game_state,1)
             else:
                 self.reinforce_factory(game_state)
+            
        self.reinforce_defenders(game_state)
                 
             # ## place the factory and reamaining turrect layout alternatively, if possible
@@ -374,8 +376,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             #     self.build_remaining_turrect(game_state, max(math.floor(self.structure_point/2),
             #                                                             math.floor(game_state.turn_number/10) * 2), 2)
 
-        
-
+    
          
      ## return a list of non-stationary locations   
     def filter_blocked_locations(self, locations, game_state):
@@ -422,7 +423,6 @@ class AlgoStrategy(gamelib.AlgoCore):
             unit_owner_self = True if damaged[4] == 1 else False
             #check if unit is a denfender, return -1 if it's a mobile
             unit = INDEX_TO_UNIT_TYPE[damaged[2]]
-            # gamelib.debug_write('hello:{}'.format(type(self.units)))
             if unit_owner_self and unit in defenders :
                 self.defenders_damaged_on_location[location] = unit
 
@@ -438,7 +438,6 @@ class AlgoStrategy(gamelib.AlgoCore):
             if  unit in defenders and not death[4]:
                 # gamelib.debug_write("dead on:{},{}".format(unit,location))
                 self.defenders_dead_on_location[location] = unit
-                self.units[unit] -= 1
 
         for breach in breaches:
             location = breach[0]
@@ -446,7 +445,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             # When parsing the frame data directly, 
             # 1 is integer for yourself, 2 is opponent (StarterKit code uses 0, 1 as player_index instead)
             if not unit_owner_self:
-                gamelib.debug_write("Got scored on at: {}".format(location))
+                # gamelib.debug_write("Got scored on at: {}".format(location))
                 self.scored_on_locations.append(location)
                 # gamelib.debug_write("All locations: {}".format(self.scored_on_locations))
 
