@@ -87,6 +87,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.defenders_dead_on_location = {} ## * record what position our denfenders got destroyed, key is location and val is unity string type
         self.factory_left_wing = [12,3]
         self.factory_right_wing = [15,3]
+        self.wall_right_wing = [24,13]
+        self.wall_left_wing = [3,13]
         self.factory_locations = []
         self.structure_point = 0 ## * our sp on each turn
         self.mobile_points = 0 ## * our mp on each turn
@@ -98,6 +100,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         # self.remain_turrects = [[8,11],[19,11]] 
         # self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
         self.loss_on_locations = []
+
+        self.which_edge_damaged = -1 # -1 undamaged, 0: left, 1:right
+        self.prev_dmg_src = 0
         
    
     def on_turn(self, turn_state):
@@ -243,11 +248,11 @@ class AlgoStrategy(gamelib.AlgoCore):
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
 
-        if game_state.turn_number < 4:
-            game_state.attempt_spawn(INTERCEPTOR, start_pt_for_interceptor, MP_for_scounts)
-        elif game_state.turn_number < 5:
-            if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
-                game_state.attempt_spawn(SCOUT, start_pt_for_scout, MP_for_scounts)
+        if game_state.turn_number < 6:
+            game_state.attempt_spawn(SCOUT, start_pt_for_interceptor, MP_for_scounts)
+        # elif game_state.turn_number < 7:
+        #     if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
+        #         game_state.attempt_spawn(SCOUT, start_pt_for_scout, MP_for_scounts)
         else:
             if MP_for_scounts > self.thresh_by_round(game_state.turn_number):
                 game_state.attempt_spawn(SCOUT, start_pt_for_scout, math.floor(total_MP))
@@ -326,23 +331,24 @@ class AlgoStrategy(gamelib.AlgoCore):
             x,y = self.turret_left_wing
             self.turret_left_wing =[x+1,y] 
             location = self.turret_left_wing
+            self.which_edge_damaged = 0
             # gamelib.debug_write("reinforce:{}".format(location))
 
         elif tuple(self.turret_right_wing) in self.defenders_damaged_on_location:
             x,y = self.turret_right_wing
             self.turret_right_wing = [x-1,y]
             location = self.turret_right_wing
+            self.which_edge_damaged = 1
             # gamelib.debug_write("reinaforce:{}".format(location))
         if location and game_state.can_spawn(TURRET,location):
             succeed = game_state.attempt_spawn(TURRET,location)
             upgraded = game_state.attempt_upgrade(location)
-
-        if not gamelib.GameUnit(TURRET,game_state.config,self.turret_left_wing).upgraded:
-            gamelib.debug_write("upgraded:{}".format(self.turret_left_wing))
-            # upgraded = game_state.attempt_upgrade(self.turret_left_wing)
-        # elif not gamelib.GameUnit(TURRET,game_state.config,self.turret_right_wing).upgraded:
-        #     upgraded = game_state.attempt_upgrade(self.turret_right_wing)
+        # gamelib.debug_write("upgraded:{}".format(self.turret_left_wing))
             
+        if self.which_edge_damaged == 0:
+            upgraded = game_state.attempt_upgrade(self.turret_left_wing)
+        elif self.which_edge_damaged == 1:
+            upgraded = game_state.attempt_upgrade(self.turret_right_wing)
 
         for location in self.defenders_damaged_on_location:
             defender = self.defenders_damaged_on_location[location]
@@ -365,6 +371,29 @@ class AlgoStrategy(gamelib.AlgoCore):
                 if succeed != 0:
                     break
 
+
+    def reinforce_wall_or_turret(self, game_state):
+        location = None
+        turrect_location = None
+        if tuple(self.wall_left_wing) in self.defenders_damaged_on_location:
+            x,y = self.wall_left_wing
+            self.wall_left_wing =[x+1,y] 
+            location = self.wall_left_wing
+            turrect_location = self.turret_left_wing
+
+        elif tuple(self.wall_right_wing) in self.defenders_damaged_on_location:
+            x,y = self.wall_right_wing
+            self.wall_right_wing = [x-1,y]
+            location = self.wall_right_wing
+            turrect_location = self.turret_right_wing
+
+        if location and game_state.can_spawn(WALL,location):
+            succeed = game_state.attempt_spawn(WALL,location)
+            upgraded = game_state.attempt_upgrade(location)
+        if turrect_location:
+            game_state.attempt_upgrade(turrect_location)
+        
+
     ## decides to build factory or defense
     ## * Priority:
     ## 1. build defenders if any is destroyed
@@ -372,16 +401,16 @@ class AlgoStrategy(gamelib.AlgoCore):
     def production_or_defense(self, game_state):
        factory_limit = 8
        self.rebuild_defender(game_state)
-       top_edge_wall_location = [[3,13],[24,13],[2,13],[25,13]]
+       top_edge_wall_location = [self.wall_left_wing, self.wall_right_wing]
 
        if game_state.turn_number  == 1 : 
             for location in top_edge_wall_location:
                 game_state.attempt_spawn(WALL, location)
+                game_state.attempt_upgrade(location)
                 
        elif game_state.turn_number == 2:
-            for location in top_edge_wall_location:
-                game_state.attempt_spawn(WALL, location)
-                game_state.attempt_upgrade(location)
+           ## spawn one upgraded wall
+          self.reinforce_wall_or_turret(game_state)
        else:
             if len(self.factory_locations) < factory_limit:
                 self.build_factory(game_state,1)
@@ -601,10 +630,21 @@ class AlgoStrategy(gamelib.AlgoCore):
             else:
                 damaged_on_left += 1
 
-        if damaged_on_left <= damaged_on_right:
+        if damaged_on_left < damaged_on_right:
+            self.prev_dmg_src = -1
             return [13, 0]
-        else:
+        elif damaged_on_left > damaged_on_right:
+            self.prev_dmg_src = 1
             return [14, 0]
+        else:
+            if self.prev_dmg_src == -1:
+                return [13,0]
+            elif self.prev_dmg_src == 1:
+                return [14,0]
+            else:
+                return [13,0] #RRR
+
+
 
     # choose from either [13,0] or [14,0] to deploy the scouts
     # depending on the defense focus of enemy
