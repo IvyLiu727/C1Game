@@ -555,7 +555,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
     # choose from either [13,0] or [14,0] to deploy the scouts
     # depending on the defense focus of enemy
-    # returns starting locationu
+    # returns starting location
     def choose_start_point(self, game_state):
         start1 = [13, 0]
         start2 = [14, 0]
