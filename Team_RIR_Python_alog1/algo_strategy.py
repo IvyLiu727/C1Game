@@ -1,4 +1,3 @@
-from Team_RIR_Python_alog1.gamelib import game_state
 import gamelib
 import random
 import math
@@ -223,8 +222,8 @@ class AlgoStrategy(gamelib.AlgoCore):
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
 
-        if MP_for_scounts > self.thresh_by_round(self, game_state.turn_number):
-            game_state.attempt_spawn(SCOUT, start_pt, total_MP)
+        if MP_for_scounts > self.thresh_by_round(game_state.turn_number):
+            game_state.attempt_spawn(SCOUT, start_pt, math.floor(total_MP))
 
     ## * init_setup will set up the units and structures at the begining
     def init_setup(self, game_state):
@@ -315,7 +314,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             if type == 1:
                 ran = n
             else:
-                ran = customized
+                ran = min(customized,n)
 
             j = 0
             for i in range(ran):
@@ -349,16 +348,16 @@ class AlgoStrategy(gamelib.AlgoCore):
        self.rebuild_defender(game_state)
        ## place the factory and reamaining turrect layout alternatively, if possible
        if self.structure_point % 6 == 4:
-           self.build_factory(self, game_state, 1, 1)
+           self.build_factory(game_state, 1, 1)
            self.structure_point = 4
        else:
-           self.build_factory(self, game_state, math.floor(self.structure_point * 0.8 / 6), 2)
+           self.build_factory(game_state, math.floor(self.structure_point * 0.8 / 6), 2)
            self.structure_point -= math.floor(self.structure_point*0.8)
-           self.build_remaining_turrect(self, game_state, max(math.floor(self.structure_point/2),
+           self.build_remaining_turrect(game_state, max(math.floor(self.structure_point/2),
                                                                   math.floor(game_state.turn_number/10) * 2), 2)
 
        self.reinforce_defenders(game_state)
-       self.build_additional_turrets(self, game_state)
+       self.build_additional_turrets(game_state)
 
         
     def build_reactive_defense(self, game_state):
