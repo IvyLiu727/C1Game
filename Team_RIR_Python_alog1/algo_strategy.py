@@ -253,9 +253,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         damage = 0
 
         # Our mobile unit is in enemy‘s half of the arena
-        attackers = game_state.get_attackers(location, 1)
+        attackers = game_state.get_attackers(location, 0)
         for attacker in attackers:
-            damage += attacker.damage_i
+            damage += TURRET_AD
         return damage
 
     def rebuild_defender(self, game_state):
