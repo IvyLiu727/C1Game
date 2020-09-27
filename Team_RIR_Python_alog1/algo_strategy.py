@@ -28,8 +28,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         gamelib.debug_write('Random seed: {}'.format(seed))
 
     def on_game_start(self, config):
-        """ 
-        Read in config and perform any initial setup here 
+        """
+        Read in config and perform any initial setup here
         """
         gamelib.debug_write('Configuring your custom algo strategy...')
         self.config = config
@@ -64,12 +64,12 @@ class AlgoStrategy(gamelib.AlgoCore):
         TURRET_AR = config["unitInformation"][2]["attackRange"]
         TURRET_AD = config["unitInformation"][2]["attackDamageWalker"]
         SCOUT_AR = config["unitInformation"][3]["attackRange"]
-        SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"] 
-        SCOUT_HP = config["unitInformation"][3]["startHealth"] 
+        SCOUT_AD = config["unitInformation"][3]["attackDamageWalker"]
+        SCOUT_HP = config["unitInformation"][3]["startHealth"]
         DEMOLISHER_AR = config["unitInformation"][4]["attackRange"]
-        DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"] 
+        DEMOLISHER_AD = config["unitInformation"][4]["attackDamageWalker"]
         INTERCEPTOR_AR = config["unitInformation"][5]["attackRange"]
-        INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"] 
+        INTERCEPTOR_AD = config["unitInformation"][5]["attackDamageWalker"]
 
         # UP = Upgraded
         # global TURRET_UP_AR, TURRET_UP_ADo
@@ -78,7 +78,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         # records the latest factory location been placed on arena
         # index 0 for left wing, 1 for right wind
-    
+
 
         # This is a good place to do initial setup
         self.scored_on_locations = []
@@ -97,14 +97,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         ## * TURRET
         self.turret_left_wing = [3,12]
         self.turret_right_wing= [24,12]
-        # self.remain_turrects = [[8,11],[19,11]] 
+        # self.remain_turrects = [[8,11],[19,11]]
         # self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
         self.loss_on_locations = []
 
         self.which_edge_damaged = -1 # -1 undamaged, 0: left, 1:right
         self.prev_dmg_src = 0
-        
-   
+
+
     def on_turn(self, turn_state):
         """
         This function is called every turn with the game state wrapper as
@@ -118,7 +118,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         game_state.suppress_warnings(True)  #Comment or remove this line to enable warnings.
         self.starter_strategy(game_state)
         game_state.submit_turn()
-        
+
 
 
     """
@@ -150,7 +150,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     in the middle.
 
     
-    """        
+    """
 
     def starter_strategy(self, game_state):
         # First, setup initial mobiles and units:
@@ -205,10 +205,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         end_pt_for_scout = path_for_scout[-1]
 
         # Deploy interceptor to dynamically defend
-        intcpter_num = self.thresh_intcpter(game_state.turn_number)                                        
+        intcpter_num = self.thresh_intcpter(game_state.turn_number)
         # df_list = [[1,12], [25,11], [13, 0], [2,11], [25,11], [14,0], [3,10], [24,10], [4,9], [23,9]]  df_list = [[26,12], [1,12], [4,9], [23,9], [7,6], [20,6]]
-        
-        df_list = [[26,12], [1,12], [4,9], [23,9], [7,6], [20,6]]
+
+        df_list = [[13,0], [14,0], [12,1], [15,1], [9,4], [18,4]]
         loss_count = 0
         visited_list = []
         locations_rst = []
@@ -223,15 +223,16 @@ class AlgoStrategy(gamelib.AlgoCore):
         for i in range(0, intcpter_num):
             if len(locations_rst) > i:
                 game_state.attempt_spawn(INTERCEPTOR, locations_rst[i],
-                math.ceil(loss_rst[i] / 5))
-                gamelib.debug_write("value after ceiling: {}".format(math.ceil(loss_rst[i] / 5)))
+                math.ceil(loss_rst[i] / 5)+1)
+                #gamelib.debug_write("value after ceiling: {}".format(math.ceil(loss_rst[i] / 5)))
                 loss_count += 1
             else:
-                game_state.attempt_spawn(INTERCEPTOR, df_list[i-loss_count], 1)
+                if i-loss_count < len(df_list):
+                    game_state.attempt_spawn(INTERCEPTOR, df_list[i-loss_count], 1)
 
         self.scored_on_locations = []
         self.loss_on_locations = []
-        
+
 
         # Decide whether to deploy scouts or not （Ivy's idea)
         percentage_for_scount = 1  # Assumption: use 80% of MP to deploy scouts
@@ -254,7 +255,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         #     if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
         #         game_state.attempt_spawn(SCOUT, start_pt_for_scout, MP_for_scounts)
         else:
-            if MP_for_scounts > self.thresh_by_round(game_state.turn_number):
+            if MP_for_scounts >= self.thresh_by_round(game_state.turn_number):
+                gamelib.debug_write("threshold is : {}".format(game_state.turn_number))
                 game_state.attempt_spawn(SCOUT, start_pt_for_scout, math.floor(total_MP))
 
     ## * init_setup will set up the units and structures at the begining
@@ -268,14 +270,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         turret_locations = [self.turret_left_wing, self.turret_right_wing,[14,11]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         game_state.attempt_spawn(TURRET, turret_locations)
-    
+
         #Place upggraded factories at the deepest location
         factory_locations = [[13,2],[14,2],self.factory_left_wing, self.factory_right_wing]
         game_state.attempt_spawn(FACTORY, factory_locations)
 
 
     # calculates the maximum damage a unit will take at location,
-    # which is a list with two elements representing x, y coordinates, 
+    # which is a list with two elements representing x, y coordinates,
     # returns an integer
     def get_damage_at_location(self, location, game_state):
         damage = 0
@@ -292,7 +294,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             defender = self.defenders_dead_on_location[location]
             succeed = game_state.attempt_spawn(defender, location)
             self.structure_point -= game_state.type_cost(defender)[SP] * succeed
-    
+
     def build_factory(self, game_state, threshold):
         ## build factory
         threshold = 1
@@ -316,7 +318,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 else:
                     x,y = self.factory_right_wing
                     self.factory_right_wing = [x+1,y+1]
-                    location  = self.factory_right_wing 
+                    location  = self.factory_right_wing
                 if game_state.can_spawn(FACTORY,location):
                     succeed = game_state.attempt_spawn(FACTORY,location)
                     if succeed != 0:
@@ -326,10 +328,10 @@ class AlgoStrategy(gamelib.AlgoCore):
     ## reinfore deenders: i.e defenders are damaged and need reinforement
     def reinforce_defenders(self, game_state):
         location = None
-        gamelib.debug_write("reinforce:{},{}".format(self.turret_left_wing, self.turret_right_wing))
+    #    gamelib.debug_write("reinforce:{},{}".format(self.turret_left_wing, self.turret_right_wing))
         if tuple(self.turret_left_wing) in self.defenders_damaged_on_location:
             x,y = self.turret_left_wing
-            self.turret_left_wing =[x+1,y] 
+            self.turret_left_wing =[x+1,y]
             location = self.turret_left_wing
             self.which_edge_damaged = 0
             # gamelib.debug_write("reinforce:{}".format(location))
@@ -344,7 +346,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             succeed = game_state.attempt_spawn(TURRET,location)
             upgraded = game_state.attempt_upgrade(location)
         # gamelib.debug_write("upgraded:{}".format(self.turret_left_wing))
-            
+
         if self.which_edge_damaged == 0:
             upgraded = game_state.attempt_upgrade(self.turret_left_wing)
         elif self.which_edge_damaged == 1:
@@ -356,9 +358,9 @@ class AlgoStrategy(gamelib.AlgoCore):
             if upgraded == 0 and defender == TURRET:
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
-                    game_state.attempt_spawn(WALL, wall_location) 
+                    game_state.attempt_spawn(WALL, wall_location)
 
-  
+
 
 
 
@@ -377,7 +379,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         turrect_location = None
         if tuple(self.wall_left_wing) in self.defenders_damaged_on_location:
             x,y = self.wall_left_wing
-            self.wall_left_wing =[x+1,y] 
+            self.wall_left_wing =[x+1,y]
             location = self.wall_left_wing
             turrect_location = self.turret_left_wing
 
@@ -392,7 +394,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             upgraded = game_state.attempt_upgrade(location)
         if turrect_location:
             game_state.attempt_upgrade(turrect_location)
-        
+
 
     ## decides to build factory or defense
     ## * Priority:
@@ -403,11 +405,11 @@ class AlgoStrategy(gamelib.AlgoCore):
        self.rebuild_defender(game_state)
        top_edge_wall_location = [self.wall_left_wing, self.wall_right_wing]
 
-       if game_state.turn_number  == 1 : 
+       if game_state.turn_number  == 1 :
             for location in top_edge_wall_location:
                 game_state.attempt_spawn(WALL, location)
                 game_state.attempt_upgrade(location)
-                
+
        elif game_state.turn_number == 2:
            ## spawn one upgraded wall
           self.reinforce_wall_or_turret(game_state)
@@ -416,9 +418,9 @@ class AlgoStrategy(gamelib.AlgoCore):
                 self.build_factory(game_state,1)
             else:
                 self.reinforce_factory(game_state)
-            
+
        self.reinforce_defenders(game_state)
-                
+
             # ## place the factory and reamaining turrect layout alternatively, if possible
             # if self.structure_point % game_state.type_cost(FACTORY)[SP] == 4:
             #     self.build_factory(game_state, 1, 1)
@@ -429,21 +431,21 @@ class AlgoStrategy(gamelib.AlgoCore):
             #     self.build_remaining_turrect(game_state, max(math.floor(self.structure_point/2),
             #                                                             math.floor(game_state.turn_number/10) * 2), 2)
 
-    
-         
-     ## return a list of non-stationary locations   
+
+
+     ## return a list of non-stationary locations
     def filter_blocked_locations(self, locations, game_state):
         filtered = []
         for location in locations:
             if not game_state.contains_stationary_unit(location):
                 filtered.append(location)
         return filtered
-    
+
 
 
     def on_action_frame(self, turn_string):
         """
-        This is the action frame of the game. This function could be called 
+        This is the action frame of the game. This function could be called
         hundreds of times per turn and could slow the algo down so avoid putting slow code here.
         Processing the action frames is complicated so we only suggest it if you have time and experience.
         Full doc on format of a game frame at: https://docs.c1games.com/json-docs.html
@@ -465,7 +467,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         defenders = [WALL, TURRET]
         # Record what position our defender gets damaged
-        ## * defenders_on_location is a dictionary with 
+        ## * defenders_on_location is a dictionary with
         ## key: location, key location will always be unique since stationary unit can't occupy the same location
         ## val: unity type
         # self.defenders_damaged_on_location = {}
@@ -486,7 +488,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             # if unit is a defender and not removed by ourself
             unit_owner_self = True if death[3] == 1 else False
             unit = INDEX_TO_UNIT_TYPE[death[1]]
-           
+
             # gamelib.debug_write("defenders: {},{}".format(defenders,unit))
             if  unit in defenders and not death[4]:
                 # gamelib.debug_write("dead on:{},{}".format(unit,location))
@@ -495,7 +497,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         for breach in breaches:
             location = breach[0]
             unit_owner_self = True if breach[4] == 1 else False
-            # When parsing the frame data directly, 
+            # When parsing the frame data directly,
             # 1 is integer for yourself, 2 is opponent (StarterKit code uses 0, 1 as player_index instead)
             if not unit_owner_self:
                 # gamelib.debug_write("Got scored on at: {}".format(location))
@@ -508,17 +510,17 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
         # We can spawn moving units on our edges so a list of all our edge locations
         friendly_edges = game_state.game_map.get_edge_locations(game_state.game_map.BOTTOM_LEFT) + game_state.game_map.get_edge_locations(game_state.game_map.BOTTOM_RIGHT)
-        
-        # Remove locations that are blocked by our own structures 
+
+        # Remove locations that are blocked by our own structures
         # since we can't deploy units there.
         deploy_locations = self.filter_blocked_locations(friendly_edges, game_state)
-        
+
         # While we have remaining MP to spend lets send out interceptors randomly.
         while game_state.get_resource(MP) >= game_state.type_cost(INTERCEPTOR)[MP] and len(deploy_locations) > 0:
             # Choose a random deploy location.
             deploy_index = random.randint(0, len(deploy_locations) - 1)
             deploy_location = deploy_locations[deploy_index]
-            
+
             game_state.attempt_spawn(INTERCEPTOR, deploy_location)
             """
             We don't have to remove the location since multiple mobile 
@@ -550,7 +552,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     def least_damage_spawn_location(self, game_state, location_options):
         """
         This function will help us guess which location is the safest to spawn moving units from.
-        It gets the path the unit will take then checks locations on that path to 
+        It gets the path the unit will take then checks locations on that path to
         estimate the path's damage risk.
         """
         damages = []
@@ -562,7 +564,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 # Get number of enemy turrets that can attack each location and multiply by turret damage
                 damage += len(game_state.get_attackers(path_location, 0)) * gamelib.GameUnit(TURRET, game_state.config).damage_i
             damages.append(damage)
-        
+
         # Now just return the location that takes the least damage
         return location_options[damages.index(min(damages))]
 
@@ -582,11 +584,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         elif round_num < 5:
             rst = 4 * math.floor(round_num/1.25)
         elif round_num < 8:
-            rst = 4 * math.floor(round_num/1.25)
+            rst = 4 * math.floor(round_num/1.5)
         elif round_num < 10:
-            rst = 4 * math.floor(round_num/1.35)
+            rst = 4 * math.floor(round_num/1.5)
         else:
-            rst = 28
+            rst = 25
         return rst
 
     def thresh_by_dmg(self, game_state, path):
@@ -612,7 +614,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             edge = game_state.game_map.TOP_LEFT
         path = game_state.find_path_to_edge(start_point, edge)
         if path == None:
-            return float('inf') 
+            return float('inf')
         else:
             return self.get_damage_at_location(path[-1], game_state)
 
