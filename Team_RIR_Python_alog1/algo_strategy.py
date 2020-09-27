@@ -87,7 +87,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.defenders_dead_on_location = {} ## * record what position our denfenders got destroyed, key is location and val is unity string type
         self.factory_left_wing = [12,3]
         self.factory_right_wing = [15,3]
-        self.facotry_locations = []
+        self.factory_locations = []
         ## * self.units with 
         ## * key: Unit type
         ## * val: Number of units in our arena
@@ -261,11 +261,8 @@ class AlgoStrategy(gamelib.AlgoCore):
 
     def rebuild_defender(self, game_state):
         # if any denfenders are destoryed, rebuild
-
-        gamelib.debug_write("dead loc:{},{}".format(len(self.defenders_dead_on_location), game_state.turn_number))
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
-            gamelib.debug_write("dead:{}".format(location))
             succeed = game_state.attempt_spawn(defender, location)
             self.units[defender] += succeed
             self.structure_point -= game_state.type_cost(defender)[SP] * succeed
@@ -304,7 +301,6 @@ class AlgoStrategy(gamelib.AlgoCore):
 
     ## reinfore deenders: i.e defenders are damaged and need reinforement
     def reinforce_defenders(self, game_state):
-         # if any defenders is damaged, upgrade it
         for location in self.defenders_damaged_on_location:
             defender = self.defenders_damaged_on_location[location]
             upgraded = game_state.attempt_upgrade(location)
@@ -312,6 +308,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
+
 
 
     # def build_remaining_turrect(self, game_state):
@@ -332,6 +329,16 @@ class AlgoStrategy(gamelib.AlgoCore):
     #                 self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
     #         self.remain_turrects = self.remain_turrects[j-1:]        
 
+
+
+    def reinforce_factory(self, game_state):
+        for location in self.factory_locations:
+            ## check whether the unit is upgraded or not
+            gamelib.debug_write("upgrade: {},{},{}".format(location, len(self.factory_locations),gamelib.GameUnit(FACTORY,game_state.config,location).upgraded))
+            if not gamelib.GameUnit(FACTORY,game_state.config,location).upgraded:
+                succeed = game_state.attempt_upgrade(location)
+                if succeed != 0:
+                    break
 
     ## decides to build factory or defense
     ## * Priority:
@@ -354,14 +361,8 @@ class AlgoStrategy(gamelib.AlgoCore):
             if self.units[FACTORY] < factory_limit:
                 self.build_factory(game_state)
             else:
-                ## upgrade factory
-                for location in self.facotry_locations:
-                    ## check whether the unit is upgraded or not
-                    if not gamelib.GameUnit(FACTORY,game_state.config,location).upgraded:
-                        succeed = game_state.attempt_upgrade(location)
-                        if succeed != 0:
-                            break
-            self.reinforce_defenders(game_state)
+                self.reinforce_factory(game_state)
+       self.reinforce_defenders(game_state)
                 
             # ## place the factory and reamaining turrect layout alternatively, if possible
             # if self.structure_point % game_state.type_cost(FACTORY)[SP] == 4:
@@ -400,7 +401,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.health = state["p1Stats"][0]
         self.structure_point = state["p1Stats"][1]
         self.mobile_points = state["p1Stats"][2]
-        self.factory_locations = state["p1Stats"][UNIT_TYPE_TO_INDEX[FACTORY]]
+        factories = state["p1Units"][UNIT_TYPE_TO_INDEX[FACTORY]]
+        self.factory_locations = [[fact[0],fact[1]] for fact in factories]
 
         events = state["events"]
         breaches = events["breach"]
