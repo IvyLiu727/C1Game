@@ -213,7 +213,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         total_MP = game_state.get_resource(1, 0) # MP (1), 0 - us
         MP_for_scouts = math.floor(total_MP * percentage_for_scout)
         total_health_of_scouts = MP_for_scouts * SCOUT_HP
-        max_receiveable_damage = self.get_damage_at_location(end_pt, game_state)
+        # max_receiveable_damage = self.get_damage_at_location(end_pt, game_state)
+        max_receiveable_damage = 0
+        for point in path[-10:]:
+            max_receiveable_damage += self.get_damage_at_location(point, game_state)
+
 
         # Temporarily hold
         #if max_receiveable_damage < total_health_of_scouts * deploy_threshold:
@@ -249,7 +253,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         damage = 0
 
         # Our mobile unit is in enemy‘s half of the arena
-        attackers = game_state.get_attackers(location, 0)
+        attackers = game_state.get_attackers(location, 1)
         for attacker in attackers:
             damage += attacker.damage_i
         return damage
