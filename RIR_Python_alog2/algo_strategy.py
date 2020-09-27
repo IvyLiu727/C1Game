@@ -1,3 +1,4 @@
+import gamelib
 import json
 import math
 import random
@@ -86,7 +87,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.defenders_dead_on_location = {} ## * record what position our denfenders got destroyed, key is location and val is unity string type
         self.factory_left_wing = [12,3]
         self.factory_right_wing = [15,3]
-        self.facotry_locations = []
         ## * self.units with 
         ## * key: Unit type
         ## * val: Number of units in our arena
@@ -259,7 +259,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.units[defender] += succeed
             self.structure_point -= game_state.type_cost(defender)[SP] * succeed
     
-    def build_factory(self, game_state):
+    def build_factory(self, game_state, customized, type):
         ## build factory
         threshold = 1
         factory_affordable = game_state.number_affordable(FACTORY)
@@ -270,13 +270,13 @@ class AlgoStrategy(gamelib.AlgoCore):
             # * mod 2 =1, right wing
             location = None
 
-        # ran = 0
-        # if type == 1:
-        #     ran = factory_affordable
-        # else:
-        #     ran = customized
+        ran = 0
+        if type == 1:
+            ran = factory_affordable
+        else:
+            ran = customized
 
-            for _ in range(factory_affordable):
+            for _ in range(ran):
                 if self.units[FACTORY] % 2 == 0:
                     x,y = self.factory_left_wing
                     self.factory_left_wing = [x-1,y+1]
@@ -287,8 +287,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                     location  = self.factory_right_wing 
 
                 if game_state.can_spawn(FACTORY,location):
-                    succeed = game_state.attempt_spawn(FACTORY,location)
-                    self.structure_point -= game_state.type_cost(FACTORY)[SP] * succeed
+                    self.units[FACTORY] += game_state.attempt_spawn(FACTORY,location)
 
     ## reinfore deenders: i.e defenders are damaged and need reinforement
     def reinforce_defenders(self, game_state):
@@ -302,18 +301,18 @@ class AlgoStrategy(gamelib.AlgoCore):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
 
 
-    def build_remaining_turrect(self, game_state):
+    def build_remaining_turrect(self, game_state, customized, type):
         turrect_affordable = game_state.number_affordable(TURRET)
         if turrect_affordable > 0:
             n = len(self.remain_turrects)
-            # ran = 0
-            # if type == 1:
-            #     ran = n
-            # else:
-            #     ran = min(customized,n)
+            ran = 0
+            if type == 1:
+                ran = n
+            else:
+                ran = min(customized,n)
 
             j = 0
-            for i in range(turrect_affordable):
+            for i in range(ran):
                 location = self.remain_turrects[i]
                 if game_state.can_spawn(TURRET,location):
                     j += 1
@@ -332,40 +331,23 @@ class AlgoStrategy(gamelib.AlgoCore):
        if game_state.turn_number  == 1 : 
             for location in top_edge_turrects_location:
                 self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
-            self.build_factory(game_state)
+            self.build_factory(game_state,1,1)
        elif game_state.turn_number == 2:
             for location in top_edge_wall_loction:
                 self.units[WALL] += game_state.attempt_spawn(WALL, location)
                 game_state.attempt_upgrade(location)
        else:
-            # upgrade top edge turrect if not upgraded
-            for location in top_edge_turrects_location:
-                if not gamelib.GameUnit(TURRET, game_state.config).upgraded:
-                    game_state.attempt_upgrade(location)
-                    self.structure_point -= game_state.type_cost(TURRET,True)[SP]
-
-            if self.units[FACTORY] < 8:
-                self.build_factory(game_state)
+            ## place the factory and reamaining turrect layout alternatively, if possible
+            if self.structure_point % game_state.type_cost(FACTORY)[SP] == 4:
+                self.build_factory(game_state, 1, 1)
+                self.structure_point = 4
             else:
-                ## upgrade factory
-                for location in self.facotry_locations:
-                    ## check whether the unit is upgraded or not
-                    if not gamelib.GameUnit(FACTORY,game_state.config,location):
-                        succeed = game_state.attempt_upgrade(location)
-                        if succeed != 0:
-                            break
-            self.reinforce_defenders(game_state)
-                
-            # ## place the factory and reamaining turrect layout alternatively, if possible
-            # if self.structure_point % game_state.type_cost(FACTORY)[SP] == 4:
-            #     self.build_factory(game_state, 1, 1)
-            #     self.structure_point = 4
-            # else:
-            #     self.build_factory(game_state, math.floor(self.structure_point * 0.8 / 6), 2)
-            #     self.structure_point -= math.floor(self.structure_point*0.8)
-            #     self.build_remaining_turrect(game_state, max(math.floor(self.structure_point/2),
-            #                                                             math.floor(game_state.turn_number/10) * 2), 2)
+                self.build_factory(game_state, math.floor(self.structure_point * 0.8 / 6), 2)
+                self.structure_point -= math.floor(self.structure_point*0.8)
+                self.build_remaining_turrect(game_state, max(math.floor(self.structure_point/2),
+                                                                        math.floor(game_state.turn_number/10) * 2), 2)
 
+       self.reinforce_defenders(game_state)
         
 
          
@@ -393,7 +375,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.health = state["p1Stats"][0]
         self.structure_point = state["p1Stats"][1]
         self.mobile_points = state["p1Stats"][2]
-        self.factory_locations = state["p1Stats"][UNIT_TYPE_TO_INDEX[FACTORY]]
 
         events = state["events"]
         breaches = events["breach"]
