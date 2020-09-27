@@ -201,7 +201,8 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         # Deploy interceptor to dynamically defend
         intcpter_num = self.thresh_intcpter(game_state.turn_number)                                        
-        df_list = [[1,12], [25,11], [13, 0], [2,11], [25,11], [14,0], [3,10], [24,10], [4,9], [23,9]]      
+        # df_list = [[1,12], [25,11], [13, 0], [2,11], [25,11], [14,0], [3,10], [24,10], [4,9], [23,9]]  
+        df_list = [[1,12], [26,12], [4,9], [23,9], [7,6], [20,6]]       
         for i in range(0, intcpter_num):                                                                   
             game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
 
@@ -220,7 +221,9 @@ class AlgoStrategy(gamelib.AlgoCore):
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
 
-        if game_state.turn_number < 5:
+        if game_state.turn_number < 3:
+            game_state.attempt_spawn(INTERCEPTOR, start_pt, MP_for_scounts)
+        elif game_state.turn_number < 5:
             if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
                 game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
         else:
@@ -258,8 +261,11 @@ class AlgoStrategy(gamelib.AlgoCore):
 
     def rebuild_defender(self, game_state):
         # if any denfenders are destoryed, rebuild
+
+        gamelib.debug_write("dead loc:{},{}".format(len(self.defenders_dead_on_location), game_state.turn_number))
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
+            gamelib.debug_write("dead:{}".format(location))
             succeed = game_state.attempt_spawn(defender, location)
             self.units[defender] += succeed
             self.structure_point -= game_state.type_cost(defender)[SP] * succeed
@@ -293,6 +299,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
                 if game_state.can_spawn(FACTORY,location):
                     succeed = game_state.attempt_spawn(FACTORY,location)
+                    self.units[FACTORY] += succeed
                     self.structure_point -= game_state.type_cost(FACTORY)[SP] * succeed
 
     ## reinfore deenders: i.e defenders are damaged and need reinforement
@@ -307,55 +314,50 @@ class AlgoStrategy(gamelib.AlgoCore):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
 
 
-    def build_remaining_turrect(self, game_state):
-        turrect_affordable = game_state.number_affordable(TURRET)
-        if turrect_affordable > 0:
-            n = len(self.remain_turrects)
-            # ran = 0
-            # if type == 1:
-            #     ran = n
-            # else:
-            #     ran = min(customized,n)
+    # def build_remaining_turrect(self, game_state):
+    #     turrect_affordable = game_state.number_affordable(TURRET)
+    #     if turrect_affordable > 0:
+    #         n = len(self.remain_turrects)
+    #         # ran = 0
+    #         # if type == 1:
+    #         #     ran = n
+    #         # else:
+    #         #     ran = min(customized,n)
 
-            j = 0
-            for i in range(turrect_affordable):
-                location = self.remain_turrects[i]
-                if game_state.can_spawn(TURRET,location):
-                    j += 1
-                    self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
-            self.remain_turrects = self.remain_turrects[j-1:]        
+    #         j = 0
+    #         for i in range(turrect_affordable):
+    #             location = self.remain_turrects[i]
+    #             if game_state.can_spawn(TURRET,location):
+    #                 j += 1
+    #                 self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
+    #         self.remain_turrects = self.remain_turrects[j-1:]        
+
 
     ## decides to build factory or defense
     ## * Priority:
     ## 1. build defenders if any is destroyed
     ## 2. upgrade defenders if any is damaged
     def production_or_defense(self, game_state):
+       factory_limit = 8
        self.rebuild_defender(game_state)
-       top_edge_turrects_location = [[2,13],[25,13]]
-       top_edge_wall_loction = [[3,13],[24,13]]
+       top_edge_wall_location = [[3,13],[24,13],[2,13],[25,13]]
 
        if game_state.turn_number  == 1 : 
-            for location in top_edge_turrects_location:
-                self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
-            self.build_factory(game_state)
+            for location in top_edge_wall_location:
+                self.units[WALL] += game_state.attempt_spawn(WALL, location)
+                
        elif game_state.turn_number == 2:
-            for location in top_edge_wall_loction:
+            for location in top_edge_wall_location:
                 self.units[WALL] += game_state.attempt_spawn(WALL, location)
                 game_state.attempt_upgrade(location)
        else:
-            # upgrade top edge turrect if not upgraded
-            for location in top_edge_turrects_location:
-                if not gamelib.GameUnit(TURRET, game_state.config).upgraded:
-                    game_state.attempt_upgrade(location)
-                    self.structure_point -= game_state.type_cost(TURRET,True)[SP]
-
-            if self.units[FACTORY] < 8:
+            if self.units[FACTORY] < factory_limit:
                 self.build_factory(game_state)
             else:
                 ## upgrade factory
                 for location in self.facotry_locations:
                     ## check whether the unit is upgraded or not
-                    if not gamelib.GameUnit(FACTORY,game_state.config,location):
+                    if not gamelib.GameUnit(FACTORY,game_state.config,location).upgraded:
                         succeed = game_state.attempt_upgrade(location)
                         if succeed != 0:
                             break
@@ -410,8 +412,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         ## * defenders_on_location is a dictionary with 
         ## key: location, key location will always be unique since stationary unit can't occupy the same location
         ## val: unity type
-        self.defenders_damaged_on_location = {}
-        self.defenders_dead_on_location = {}
+        # self.defenders_damaged_on_location = {}
+        # self.defenders_dead_on_location = {}
         # defender = Nones
         for damaged in damages:
             location = tuple(damaged[0])
@@ -429,7 +431,10 @@ class AlgoStrategy(gamelib.AlgoCore):
             # if unit is a defender and not removed by ourself
             unit_owner_self = True if death[3] == 1 else False
             unit = INDEX_TO_UNIT_TYPE[death[1]]
+           
+            # gamelib.debug_write("defenders: {},{}".format(defenders,unit))
             if  unit in defenders and not death[4]:
+                # gamelib.debug_write("dead on:{},{}".format(unit,location))
                 self.defenders_dead_on_location[location] = unit
                 self.units[unit] -= 1
 
