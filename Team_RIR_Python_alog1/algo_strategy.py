@@ -326,9 +326,9 @@ class AlgoStrategy(gamelib.AlgoCore):
             elif location[0]<13:
                 build_location = [location[0] + 1, location[1]]
             
-        if abs(prev_y - location[1]) > threshold:
-            if game_state.can_spawn(TURRET):
-                self.units[TURRET] += game_state.attempt_spawn(TURRET, build_location)
+            if abs(prev_y - location[1]) > threshold:
+                if game_state.can_spawn(TURRET, build_location):
+                    self.units[TURRET] += game_state.attempt_spawn(TURRET, build_location)
          
      ## return a list of non-stationary locations   
     def filter_blocked_locations(self, locations, game_state):
@@ -395,7 +395,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 gamelib.debug_write("Got scored on at: {}".format(location))
                 self.scored_on_locations.append(location)
                 # gamelib.debug_write("All locations: {}".format(self.scored_on_locations))
-            self.scored_on_locations = sorted(key=lambda x:x[1], reverse=True)
+            self.scored_on_locations.sort(key=lambda x:x[1], reverse=True)
 
     def stall_with_interceptors(self, game_state):
         """
