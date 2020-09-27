@@ -97,7 +97,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.mobile_points = 0 ## * our mp on each turn
         self.health = 0 ## * our health each turn
 
-        self.remain_turrects = [[9,10], [19,10]]       
+        self.remain_turrects = [[8,10], [19,10], [2,13], [25,13], [6,12], [21,12], [9,12], [18,12]]
+        self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
 
         
     def on_turn(self, turn_state):
@@ -207,18 +208,23 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
             game_state.attempt_spawn(INTERCEPTOR, df_list[i+1], 1)
 
-        # Decide whether to deploy scouts or not
+        # Decide whether to deploy scouts or not （Ivy's idea)
         percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
         deploy_threshold = 0.5
         total_MP = game_state.get_resource(1, 0) # MP (1), 0 - us
         MP_for_scounts = math.floor(total_MP * percentage_for_scount)
         total_health_of_scounts = MP_for_scounts * SCOUT_HP
         max_receiveable_damage = self.get_damage_at_location(end_pt, game_state)
-        if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
-            game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
+
+        # Temporarily hold
+        #if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
+        #    game_state.attempt_spawn(SCOUT, start_pt, MP_for_scounts)
                 # # Lastly, if we have spare SP, let's build some Factories to generate more resources
                 # factory_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
                 # game_state.attempt_spawn(FACTORY, factory_locations)
+
+        if MP_for_scounts > self.thresh_by_round(self, game_state.turn_number):
+            game_state.attempt_spawn(SCOUT, start_pt, total_MP)
 
     ## * init_setup will set up the units and structures at the begining
     def init_setup(self, game_state):
@@ -228,7 +234,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
 
         # Place turrets that attack enemy units
-        turret_locations = [[4,12],[23,12],[14,11]]
+        turret_locations = [[3,12],[24,12],[14,11]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         self.units[TURRET] += game_state.attempt_spawn(TURRET, turret_locations)
     
@@ -253,9 +259,12 @@ class AlgoStrategy(gamelib.AlgoCore):
         # if any denfenders are destoryed, rebuild
         for location in self.defenders_dead_on_location:
             defender = self.defenders_dead_on_location[location]
+            pre = self.units[defender]
             self.units[defender] += game_state.attempt_spawn(defender, location)
+            num = self.units[defender] - pre
+            self.structure_point -= 2 * num
     
-    def build_factory(self, game_state):
+    def build_factory(self, game_state, customized, type):
         ## build factory
         threshold = 1
         factory_affordable = game_state.number_affordable(FACTORY)
@@ -266,7 +275,13 @@ class AlgoStrategy(gamelib.AlgoCore):
             # * mod 2 =1, right wing
             location = None
 
-            for _ in range(factory_affordable):
+        ran = 0
+        if type == 1:
+            ran = factory_affordable
+        else:
+            ran = customized
+
+            for _ in range(ran):
                 if self.units[FACTORY] % 2 == 0:
                     x,y = self.factory_left_wing
                     self.factory_left_wing = [x-1,y+1]
@@ -291,31 +306,60 @@ class AlgoStrategy(gamelib.AlgoCore):
                     self.units[WALL] += game_state.attempt_spawn(WALL, wall_location) 
 
 
-    def build_remaining_turrect(self, game_state):
+    def build_remaining_turrect(self, game_state, customized, type):
         turrect_affordable = game_state.number_affordable(TURRET)
         if turrect_affordable > 0:
             n = len(self.remain_turrects)
+
+            ran = 0
+            if type == 1:
+                ran = n
+            else:
+                ran = customized
+
             j = 0
-            for i in range(n):
+            for i in range(ran):
                 location = self.remain_turrects[i]
                 if game_state.can_spawn(TURRET,location):
                     j += 1
                     self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
             self.remain_turrects = self.remain_turrects[j-1:]
-            
+
+
+    def build_additional_turrets(self, game_state):
+        turret_affordable = game_state.number_affordable(TURRET)
+        if turret_affordable > 0:
+            n = len(self.additional_turrets)
+
+            j = 0
+            for i in range(n):
+                location = self.additional_turrets[i]
+                if game_state.can_spawn(TURRET, location):
+                    j += 1
+                    self.units[TURRET] += game_state.attempt_spawn(TURRET, location)
+            self.additional_turrets = self.additional_turrets[j-1:]
+
+
 
     ## decides to build factory or defense
     ## * Prioirty:
     ## 1. build defenders if any is destroyed
     ## 2. upgrade defenders if any is damaged
     def production_or_defense(self, game_state):
-       global remain_pos
        self.rebuild_defender(game_state)
-       ## place the reamaining turrect layout, if possible
-       self.build_remaining_turrect(game_state)
-       
-       self.build_factory(game_state)
+       ## place the factory and reamaining turrect layout alternatively, if possible
+       if self.structure_point % 6 == 4:
+           self.build_factory(self, game_state, 1, 1)
+           self.structure_point = 4
+       else:
+           self.build_factory(self, game_state, math.floor(self.structure_point * 0.8 / 6), 2)
+           self.structure_point -= math.floor(self.structure_point*0.8)
+           self.build_remaining_turrect(self, game_state, max(math.floor(self.structure_point/2),
+                                                                  math.floor(game_state.turn_number/10) * 2), 2)
+
        self.reinforce_defenders(game_state)
+       self.build_additional_turrets(self, game_state)
+
         
     def build_reactive_defense(self, game_state):
         """
@@ -469,16 +513,18 @@ class AlgoStrategy(gamelib.AlgoCore):
                         total_units += 1
         return total_units
 
-    def thresh_by_round(round_num):
+    def thresh_by_round(self, round_num):
         rst = 0
-        if round_num < 10:
-            rst = 4 * math.floor(round_num/2.5)
-        elif round_num < 20:
-            rst = 4 * math.floor(round_num/3)
-        elif round_num < 30:
-            rst = 4 * math.floor(round_num/4)
+        if round_num < 3:
+            rst = 4 * math.floor(round_num)
+        elif round_num < 5:
+            rst = 4 * math.floor(round_num/1.25)
+        elif round_num < 8:
+            rst = 4 * math.floor(round_num/1.25)
+        elif round_num < 10:
+            rst = 4 * math.floor(round_num/1.35)
         else:
-            rst = 36
+            rst = 28
         return rst
 
     def thresh_by_dmg(self, game_state, path):
