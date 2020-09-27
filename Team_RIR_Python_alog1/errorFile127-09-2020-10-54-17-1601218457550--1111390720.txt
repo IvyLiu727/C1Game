@@ -1,0 +1,10 @@
+Random seed: 8354311135729955046
+---------------- Starting Your Algo --------------------
+Traceback (most recent call last):
+  File "/Users/Raymond/Documents/Developer/Terminal_AI/season_7/C1Game/Team_RIR_Python_alog1/algo_strategy.py", line 581, in <module>
+    algo.start()
+  File "/Users/Raymond/Documents/Developer/Terminal_AI/season_7/C1Game/Team_RIR_Python_alog1/gamelib/algocore.py", line 59, in start
+    game_state_string = get_command()
+  File "/Users/Raymond/Documents/Developer/Terminal_AI/season_7/C1Game/Team_RIR_Python_alog1/gamelib/util.py", line 12, in get_command
+    ret = sys.stdin.readline()
+KeyboardInterrupt
