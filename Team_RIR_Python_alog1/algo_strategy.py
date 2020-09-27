@@ -4,8 +4,6 @@ import random
 import warnings
 from sys import maxsize
 
-import gamelib
-
 """
 Most of the algo code you write will be in this file unless you create new
 modules yourself. Start by modifying the 'on_turn' function.
@@ -200,11 +198,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         end_pt = path[-1]
 
         # Deploy interceptor to dynamically defend
-        intcpter_num = self.thresh_intcpter(game_state.turn_number)
-        df_list = [[1,12], [26,12], [2,11], [25,11], [3,10], [24,10], [4,9], [23,9]]
-        for i in range(0, intcpter_num):
+        intcpter_num = self.thresh_intcpter(game_state.turn_number)                                        
+        df_list = [[1,12], [25,11], [13, 0], [2,11], [25,11], [14,0], [3,10], [24,10], [4,9], [23,9]]      
+        for i in range(0, intcpter_num):                                                                   
             game_state.attempt_spawn(INTERCEPTOR, df_list[i], 1)
-            game_state.attempt_spawn(INTERCEPTOR, df_list[i+1], 1)
 
         # Decide whether to deploy scouts or not （Ivy's idea)
         percentage_for_scount = 0.8  # Assumption: use 80% of MP to deploy scouts
