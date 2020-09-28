@@ -479,11 +479,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         r_x,_ = self.turret_in_the_middle_right
         turret_affordable = game_state.number_affordable(TURRET)
         if turret_affordable >= threshold:
-            if self.which_middle == 0 and l_x <= 13: ## left
+            if self.which_middle == 0 : ## left
                 game_state.attempt_spawn(TURRET,self.turret_in_the_middle_left)
                 x,y = self.turret_in_the_middle_left
                 self.turret_in_the_middle_left = [x+1,y]
-            elif self.which_middle == 0 and r_x >= 14: ## left
+            elif self.which_middle == 0 : ## left
                 game_state.attempt_spawn(TURRET,self.turret_in_the_middle_right)
                 x,y = self.turret_in_the_middle_right
                 self.turret_in_the_middle_right = [x-1,y]
