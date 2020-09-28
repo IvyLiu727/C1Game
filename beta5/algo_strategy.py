@@ -1,9 +1,10 @@
 import json
 import math
+from os import stat
 import random
 import gamelib
 import warnings
-from sys import maxsize
+from sys import maxsize, setdlopenflags
 import random
 """
 Most of the algo code you write will be in this file unless you create new
@@ -89,6 +90,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         ## * factory
         self.factory_left_wing = [13,4]
         self.factory_right_wing = [14,4]
+
+
+        self.factory_right_wing_2 = [14,2]
+        self.factory_left_wing_2 = [13,2]
         self.factory_locations = []
         self.factory_up_or_build = 0 # 0 build, 1 is upgrade
 
@@ -110,6 +115,17 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.turret_right_wing= [22,11]
         self.turret_left_front = [2,12]
         self.turret_right_front = [26,12]
+
+
+        self.turret_in_the_middle_left = [6,11]
+        self.turret_in_the_middle_right = [21,11]
+        self.which_middle = -2 ## 0 = left, 1 = right
+
+
+
+        self.denfenders_wall = []
+        self.denfenders_turret = []
+
         self.which_side = -2
         # self.remain_turrects = [[8,11],[19,11]] 
         # self.additional_turrets = [[12,12], [14,12], [5,11], [22,11], [11,10], [15,10], [16,11]]
@@ -344,7 +360,23 @@ class AlgoStrategy(gamelib.AlgoCore):
                         if succeed != 0:
                             self.factory_locations.append(location)
                             self.factory_up_or_build ^=1
-
+            elif len(self.factory_locations) >=6:
+                 for _ in range(threshold):
+                    if len(self.factory_locations) %2 == 0:
+                        x,y = self.factory_left_wing_2
+                        self.factory_left_wing_2 = [x-1,y+1]
+                        location = self.factory_left_wing_2
+                    else:
+                        x,y = self.factory_right_wing_2
+                        self.factory_right_wing_2 = [x+1,y+1]
+                        location = self.factory_right_wing_2
+                    if location:
+                        gamelib.debug_write("hello:{}".format(location))
+                        succeed = game_state.attempt_spawn(FACTORY,location)
+                        if succeed != 0:
+                            self.factory_locations.append(location)
+                            self.factory_up_or_build ^=1
+                    
         
      
 
@@ -370,9 +402,24 @@ class AlgoStrategy(gamelib.AlgoCore):
             if upgraded == 0 and defender == TURRET:
                 wall_location = [location[0], location[1] + 1]
                 if game_state.can_spawn(WALL, wall_location):
-                    game_state.attempt_spawn(WALL, wall_location) 
+                    game_state.attempt_spawn(WALL, wall_location)
 
-  
+        
+        turret_affordable = game_state.number_affordable(TURRET) 
+        wall_affordable = game_state.number_affordable(WALL) 
+
+        for _ in range(turret_affordable):
+            for location in self.denfenders_turret:
+                upgraded = game_state.attempt_upgrade(location)
+                
+
+
+        for _ in range(wall_affordable):
+            for location in self.denfenders_wall:
+                 upgraded = game_state.attempt_upgrade(location)
+
+
+
 
 
 
@@ -421,6 +468,19 @@ class AlgoStrategy(gamelib.AlgoCore):
             
 
             
+    def build_middle_defense(self, game_state, threshold):
+        turret_affordable = game_state.number_affordable(TURRET)
+        if turret_affordable >= threshold:
+            if self.which_middle == 0: ## left
+                game_state.attempt_spawn(TURRET,self.turret_in_the_middle_left)
+                x,y = self.turret_in_the_middle_left
+                self.turret_in_the_middle_left = [x+1,y]
+            else: ## left
+                game_state.attempt_spawn(TURRET,self.turret_in_the_middle_right)
+                x,y = self.turret_in_the_middle_right
+                self.turret_in_the_middle_left = [x-1,y]
+            self.which_middle ^= 1
+            
             
 
     ## decides to build factory or defense
@@ -450,6 +510,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 self.build_factory(game_state,1)
             else:
                 self.reinforce_factory(game_state)
+            self.build_middle_defense(game_state,2)
             self.reinforce_defenders(game_state)
             
 
@@ -511,7 +572,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.structure_point = state["p1Stats"][1]
         self.mobile_points = state["p1Stats"][2]
         factories = state["p1Units"][UNIT_TYPE_TO_INDEX[FACTORY]]
+        walls = state["p1Units"][UNIT_TYPE_TO_INDEX[WALL]]
+        turrects = state["p1Units"][UNIT_TYPE_TO_INDEX[TURRET]]
         self.factory_locations = [[fact[0],fact[1]] for fact in factories]
+        self.denfenders_wall = [[wall[0],wall[1]] for wall in walls]
+        self.denfenders_turret = [[turr[0],turr[1]] for turr in turrects]
 
         events = state["events"]
         breaches = events["breach"]
@@ -546,6 +611,8 @@ class AlgoStrategy(gamelib.AlgoCore):
             if  unit in defenders and not death[4]:
                 # gamelib.debug_write("dead on:{},{}".format(unit,location))
                 self.defenders_dead_on_location[location] = unit
+            
+        
 
         for breach in breaches:
             location = breach[0]

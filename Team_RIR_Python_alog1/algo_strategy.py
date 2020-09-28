@@ -4,7 +4,7 @@ from os import stat
 import random
 import gamelib
 import warnings
-from sys import maxsize
+from sys import maxsize, setdlopenflags
 import random
 """
 Most of the algo code you write will be in this file unless you create new
@@ -117,8 +117,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.turret_right_front = [26,12]
 
 
-        self.turret_in_the_middle_left = [[6,11]]
-        self.turret_in_the_middle_right = [[21,11]]
+        self.turret_in_the_middle_left = [6,11]
+        self.turret_in_the_middle_right = [21,11]
+        self.which_middle = -2 ## 0 = left, 1 = right
+
 
 
         self.denfenders_wall = []
@@ -466,9 +468,19 @@ class AlgoStrategy(gamelib.AlgoCore):
             
 
             
-    # def buidl_middle_defense(game_state, threshold):
-    #     turret_affordable = game_state.number_affordable(TURRET)
-    #     if turret_affordable >= threshold:
+    def build_middle_defense(self, game_state, threshold):
+        turret_affordable = game_state.number_affordable(TURRET)
+        if turret_affordable >= threshold:
+            if self.which_middle == 0: ## left
+                game_state.attempt_spawn(TURRET,self.turret_in_the_middle_left)
+                x,y = self.turret_in_the_middle_left
+                self.turret_in_the_middle_left = [x+1,y]
+            else: ## left
+                game_state.attempt_spawn(TURRET,self.turret_in_the_middle_right)
+                x,y = self.turret_in_the_middle_right
+                self.turret_in_the_middle_left = [x-1,y]
+            self.which_middle ^= 1
+            
             
 
     ## decides to build factory or defense
@@ -498,7 +510,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                 self.build_factory(game_state,1)
             else:
                 self.reinforce_factory(game_state)
-
+            self.build_middle_defense(game_state,2)
             self.reinforce_defenders(game_state)
             
 
