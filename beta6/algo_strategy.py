@@ -283,11 +283,17 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         if game_state.turn_number < 6:
             game_state.attempt_spawn(SCOUT, start_pt_for_interceptor, MP_for_scounts)
+        elif game_state.turn_number == 5:
+            game_state.attempt_spawn(DEMOLISHER, [24,10], math.ceil(MP_for_scounts/3))
+            game_state.attempt_spawn(INTERCEPTOR, start_pt_for_interceptor, MP_for_scounts)
         # elif game_state.turn_number < 7:
         #     if max_receiveable_damage < total_health_of_scounts * deploy_threshold:
         #         game_state.attempt_spawn(SCOUT, start_pt_for_scout, MP_for_scounts)
         else:
-            if MP_for_scounts >= self.thresh_by_round(game_state.turn_number):
+            if (game_state.turn_number+2) % 5 == 0:
+                game_state.attempt_spawn(DEMOLISHER, [9,4], math.ceil((MP_for_scounts - 4)/3))
+                game_state.attempt_spawn(INTERCEPTOR, [19,5], MP_for_scounts)
+            elif MP_for_scounts >= self.thresh_by_round(game_state.turn_number):
                 gamelib.debug_write("threshold is : {}".format(game_state.turn_number))
                 game_state.attempt_spawn(SCOUT, start_pt_for_scout, math.floor(total_MP))
 

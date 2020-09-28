@@ -475,16 +475,18 @@ class AlgoStrategy(gamelib.AlgoCore):
 
             
     def build_middle_defense(self, game_state, threshold):
+        l_x,_ = self.turret_in_the_middle_left
+        r_x,_ = self.turret_in_the_middle_right
         turret_affordable = game_state.number_affordable(TURRET)
         if turret_affordable >= threshold:
-            if self.which_middle == 0: ## left
+            if self.which_middle == 0 and l_x <= 13: ## left
                 game_state.attempt_spawn(TURRET,self.turret_in_the_middle_left)
                 x,y = self.turret_in_the_middle_left
                 self.turret_in_the_middle_left = [x+1,y]
-            else: ## left
+            elif self.which_middle == 0 and r_x >= 14: ## left
                 game_state.attempt_spawn(TURRET,self.turret_in_the_middle_right)
                 x,y = self.turret_in_the_middle_right
-                self.turret_in_the_middle_left = [x-1,y]
+                self.turret_in_the_middle_right = [x-1,y]
             self.which_middle ^= 1
             
             
@@ -512,45 +514,13 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(WALL,[27,13])
             game_state.attempt_upgrade([27,13])
         else:
+            game_state.attempt_spawn(TURRET,[2,11])
             if self.factory_up_or_build == 0:
                 self.build_factory(game_state,1)
             else:
                 self.reinforce_factory(game_state)
             self.build_middle_defense(game_state,2)
             self.reinforce_defenders(game_state)
-            
-
-
-    #    factory_limit = 8
-    #    self.rebuild_defender(game_state)
-    #    top_edge_wall_location = [self.wall_left_wing, self.wall_right_wing]
-
-    #    if game_state.turn_number  == 1 : 
-    #         for location in top_edge_wall_location:
-    #             game_state.attempt_spawn(WALL, location)
-    #             game_state.attempt_upgrade(location)
-                
-    #    elif game_state.turn_number == 2:
-    #        ## spawn one upgraded wall
-    #       self.reinforce_wall_or_turret(game_state)
-    #    else:
-    #         if len(self.factory_locations) < factory_limit:
-    #             self.build_factory(game_state,1)
-    #         else:
-    #             self.reinforce_factory(game_state)
-            
-    #    self.reinforce_defenders(game_state)
-                
-            # ## place the factory and reamaining turrect layout alternatively, if possible
-            # if self.structure_point % game_state.type_cost(FACTORY)[SP] == 4:
-            #     self.build_factory(game_state, 1, 1)
-            #     self.structure_point = 4
-            # else:
-            #     self.build_factory(game_state, math.floor(self.structure_point * 0.8 / 6), 2)
-            #     self.structure_point -= math.floor(self.structure_point*0.8)
-            #     self.build_remaining_turrect(game_state, max(math.floor(self.structure_point/2),
-            #                                                             math.floor(game_state.turn_number/10) * 2), 2)
-
     
          
      ## return a list of non-stationary locations   
